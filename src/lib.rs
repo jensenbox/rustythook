@@ -8,7 +8,22 @@ pub mod runner;
 pub mod cache;
 pub mod hooks;
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
+use clap_complete::{generate, Generator, Shell as ClapShell};
+use std::io;
+
+/// Supported shells for completion script generation
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum Shell {
+    /// Bash shell
+    Bash,
+    /// Zsh shell
+    Zsh,
+    /// Fish shell
+    Fish,
+    /// PowerShell
+    PowerShell,
+}
 
 #[derive(Parser)]
 #[command(
@@ -58,6 +73,13 @@ pub enum Commands {
 
     /// Remove cached environments and tool installs
     Clean,
+
+    /// Generate shell completion scripts
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 /// Main entry point for the RustyHook CLI
@@ -105,6 +127,10 @@ pub fn main() {
         Commands::Clean => {
             println!("Removing cached environments and tool installs...");
             clean_environments();
+        }
+        Commands::Completions { shell } => {
+            println!("Generating completion script for {:?}...", shell);
+            generate_completion_script(shell);
         }
     }
 }
@@ -313,4 +339,25 @@ fn get_files_to_check() -> Vec<std::path::PathBuf> {
     }
 
     files
+}
+
+/// Generate shell completion script for the specified shell
+fn generate_completion_script(shell: Shell) {
+    let mut cmd = Cli::command();
+    let bin_name = cmd.get_name().to_string();
+
+    match shell {
+        Shell::Bash => {
+            generate(ClapShell::Bash, &mut cmd, bin_name, &mut io::stdout());
+        }
+        Shell::Zsh => {
+            generate(ClapShell::Zsh, &mut cmd, bin_name, &mut io::stdout());
+        }
+        Shell::Fish => {
+            generate(ClapShell::Fish, &mut cmd, bin_name, &mut io::stdout());
+        }
+        Shell::PowerShell => {
+            generate(ClapShell::PowerShell, &mut cmd, bin_name, &mut io::stdout());
+        }
+    }
 }

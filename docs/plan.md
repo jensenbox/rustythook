@@ -1,6 +1,6 @@
 Tasks:
 
-- [ ] Create a means to generate command line completion scripts for all major shells and operating systems (bash, zsh, fish, powershell)
+- [x] Create a means to generate command line completion scripts for all major shells and operating systems (bash, zsh, fish, powershell)
 - [ ] Update the README to include all the above including the means to install, configure and run
 - [ ] Update the README to include a section on how to convert from pre-commit to rustyhook
 - [ ] create a command line tool that can be used to convert a pre-commit configuration file to rustyhook configuration file
@@ -23,3 +23,4 @@ Tasks:
 - [ ] implement an "explain" command that can be used to explain the current configuration and any errors that may have occurred.
 - [ ] use uv to start all python hooks in a separate process
 - [ ] use fnm to start all node hooks in a separate process
+- [ ] Add a strict rust linter to the project
