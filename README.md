@@ -47,6 +47,7 @@ rh init              # Scaffold a new .rustyhook/config.yaml
 rh list              # List configured hooks
 rh doctor            # Diagnose tool/setup issues
 rh clean             # Remove cached environments
+rh completions       # Generate shell completion scripts
 ```
 
 ---
@@ -97,6 +98,58 @@ rh convert --from-precommit > .rustyhook/config.yaml
 | Ruby     | `rbenv + bundler`  |
 
 Environments are cached in `.rustyhook/cache/` and versioned by `{tool}-{version}`. RustyHook uses hashes of config + tool version to determine cache freshness.
+
+---
+
+## 🔄 Shell Completions
+
+RustyHook provides shell completion scripts for Bash, Zsh, Fish, and PowerShell. You can generate and install them as follows:
+
+### Bash
+
+```sh
+# Generate and save completion script
+rustyhook completions bash > ~/.bash_completion.d/rustyhook
+# Or for the alias
+rustyhook completions bash | sed 's/rustyhook/rh/g' > ~/.bash_completion.d/rh
+
+# Source the completion script
+source ~/.bash_completion.d/rustyhook
+```
+
+### Zsh
+
+```sh
+# Generate and save completion script
+rustyhook completions zsh > ~/.zsh/completions/_rustyhook
+# Or for the alias
+rustyhook completions zsh | sed 's/rustyhook/rh/g' > ~/.zsh/completions/_rh
+
+# Make sure ~/.zsh/completions is in your fpath
+echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc
+echo 'autoload -U compinit && compinit' >> ~/.zshrc
+```
+
+### Fish
+
+```sh
+# Generate and save completion script
+rustyhook completions fish > ~/.config/fish/completions/rustyhook.fish
+# Or for the alias
+rustyhook completions fish | sed 's/rustyhook/rh/g' > ~/.config/fish/completions/rh.fish
+```
+
+### PowerShell
+
+```powershell
+# Generate and save completion script
+rustyhook completions powershell > $PROFILE.CurrentUserCurrentHost/rustyhook.ps1
+# Or for the alias
+rustyhook completions powershell | ForEach-Object { $_ -replace "rustyhook", "rh" } > $PROFILE.CurrentUserCurrentHost/rh.ps1
+
+# Source the completion script
+echo '. $PROFILE.CurrentUserCurrentHost/rustyhook.ps1' >> $PROFILE
+```
 
 ---
 
