@@ -75,17 +75,50 @@ hooks:
 
 ## 🔄 Migration from `pre-commit`
 
-RustyHook can run `.pre-commit-config.yaml` directly:
+RustyHook is designed to be a drop-in replacement for [pre-commit](https://pre-commit.com/), making migration as seamless as possible.
+
+### Compatibility Mode
+
+The easiest way to start using RustyHook is with compatibility mode, which allows RustyHook to use your existing `.pre-commit-config.yaml` file without any changes:
 
 ```sh
 rh compat
 ```
 
-To migrate to native format:
+This command will read your `.pre-commit-config.yaml` file, set up the necessary environments, and run the hooks as defined in your pre-commit configuration.
+
+### Converting Your Configuration
+
+While compatibility mode works well, you'll get the best performance and features by converting to RustyHook's native configuration format:
 
 ```sh
+# Convert pre-commit config to RustyHook config
 rh convert --from-precommit > .rustyhook/config.yaml
 ```
+
+This will create a new `.rustyhook/config.yaml` file based on your existing pre-commit configuration.
+
+### Migrating Git Hooks
+
+If you've installed pre-commit as a Git hook, you'll need to uninstall it and install RustyHook instead:
+
+```sh
+# Uninstall pre-commit hooks
+pre-commit uninstall
+
+# Install RustyHook hooks
+rh install
+```
+
+### Key Differences
+
+1. **Repository References**: RustyHook doesn't use the `repos` structure. Instead, it directly defines hooks with their language and version.
+2. **Version Specification**: RustyHook uses package version specifiers (`version`) instead of Git revisions (`rev`).
+3. **Dependencies**: RustyHook uses `dependencies` instead of `additional_dependencies`.
+4. **Entry Point**: RustyHook requires an explicit `entry` field, while pre-commit infers it from the hook ID.
+5. **Local Hooks**: RustyHook treats all hooks as "local" by default. There's no need for a special `local` repository designation.
+
+For more detailed information about migrating from pre-commit to RustyHook, see the [Migration Guide](https://your-org.github.io/rustyhook/user-guide/migration.html).
 
 ---
 

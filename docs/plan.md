@@ -4,7 +4,7 @@ Tasks:
 - [x] Update the README to include all the above including the means to install, configure and run
 - [x] create documentation for the project that can be pushed to github pages using a github action
 - [x] create a github action to publish the documentation to github pages
-- [ ] Update the README to include a section on how to convert from pre-commit to rustyhook
+- [x] Update the README to include a section on how to convert from pre-commit to rustyhook
 - [ ] create a command line tool that can be used to convert a pre-commit configuration file to rustyhook configuration file
 - [ ] expand all built in hooks to include all known hooks from https://pre-commit.com/hooks.html
 - [ ] enable logging to a file or other outputs other than just stdout
