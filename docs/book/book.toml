@@ -1,0 +1,24 @@
+[book]
+title = "RustyHook Documentation"
+authors = ["RustyHook Contributors"]
+description = "Documentation for RustyHook, a blazing-fast, Rust-native Git hook runner"
+src = "src"
+language = "en"
+
+[output.html]
+git-repository-url = "https://github.com/your-org/rustyhook"
+edit-url-template = "https://github.com/your-org/rustyhook/edit/main/docs/book/{path}"
+site-url = "/rustyhook/"
+additional-css = ["theme/custom.css"]
+additional-js = ["theme/custom.js"]
+
+[output.html.search]
+enable = true
+limit-results = 20
+teaser-word-count = 30
+use-boolean-and = true
+boost-title = 2
+boost-hierarchy = 1
+boost-paragraph = 1
+expand = true
+heading-split-level = 3

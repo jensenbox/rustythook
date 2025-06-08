@@ -1,0 +1,5 @@
+# Generated book
+book/
+
+# mdBook build artifacts
+.mdbook/
