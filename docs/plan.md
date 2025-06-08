@@ -7,7 +7,7 @@ Tasks:
 - [x] Update the README to include a section on how to convert from pre-commit to rustyhook
 - [x] Remove the duplicate code in the github actions by consolidating the build steps and deployment steps into a single workflow (the ones that relate to publishing that is)
 - [x] enable logging to a file or other outputs other than just stdout
-- [ ] ensure logging levels are configurable and appropriate for all execution steps
+- [x] ensure logging levels are configurable and appropriate for all execution steps
 - [ ] enable using rustyhook in this repository as for pre-commit replacement and configure for a rust project
 - [ ] replace the use of pip with uv - potentially link to the source code so as to get the benefit without needing a local binary
 - [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
