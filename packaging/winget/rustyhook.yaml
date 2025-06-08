@@ -1,0 +1,26 @@
+# WinGet manifest for RustyHook
+PackageIdentifier: RustyHook.RustyHook
+PackageVersion: 0.1.0
+PackageName: RustyHook
+Publisher: RustyHook Team
+License: MIT
+LicenseUrl: https://github.com/your-org/rustyhook/blob/main/LICENSE
+ShortDescription: Blazing-fast, Rust-native Git hook runner
+Description: RustyHook is a blazing-fast, Rust-native Git hook runner designed to be a modern, drop-in replacement for pre-commit. It is language-agnostic, monorepo-friendly, and automatically provisions environments for linters and checkers written in Python, Node.js, Ruby, and more.
+PackageUrl: https://github.com/your-org/rustyhook
+Tags:
+  - git
+  - hooks
+  - pre-commit
+  - rust
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: https://github.com/your-org/rustyhook/releases/download/v0.1.0/rustyhook-v0.1.0-x86_64-pc-windows-msvc.zip
+    InstallerSha256: REPLACE_WITH_ACTUAL_HASH_AFTER_RELEASE
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: rh.exe
+        PortableCommandAlias: rh
+ManifestType: singleton
+ManifestVersion: 1.4.0

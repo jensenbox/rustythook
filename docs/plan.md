@@ -1,0 +1,25 @@
+Tasks:
+
+- [ ] Create a means to generate command line completion scripts for all major shells and operating systems (bash, zsh, fish, powershell)
+- [ ] Update the README to include all the above including the means to install, configure and run
+- [ ] Update the README to include a section on how to convert from pre-commit to rustyhook
+- [ ] create a command line tool that can be used to convert a pre-commit configuration file to rustyhook configuration file
+- [ ] expand all built in hooks to include all known hooks from https://pre-commit.com/hooks.html
+- [ ] create documentation for the project that can be pushed to github pages using a github action
+- [ ] enable logging to a file or other outputs other than just stdout
+- [ ] ensure logging levels are configurable and appropriate for all execution steps
+- [ ] enable using rustyhook in this repository as for pre-commit replacement and configure for a rust project
+- [ ] replace the use of pip with uv - potentially link to the source code so as to get the benefit without needing a local binary
+- [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
+- [ ] create tests for each hook and complete coverage
+- [ ] replace the npm and nvm install process with fnm if it makes sense to do so
+- [ ] Remove the duplicate code in the github actions by consolidating the build steps and deployment steps into a single workflow
+- [ ] Re-evaluate the use of python and other languages in the docker file as they are likely not needed
+- [ ] Update the `.junie/guidelines.md` file to include the new features and rust best practices
+- [ ] Use a mechanism to create and deploy semver compatible releases. Perhaps use cargo-release or some other mechanism to automatically generate release notes and create a tag - trigger a release on tag creation.
+- [ ] Remove the dependency on a base interpreter for python, node and ruby by downloading the required interpreters from the internet and installing locally. Make sure to abide by the correct versions in the .python-version and similar files. As this is for a monorepo you will need to ensure the use per sub-directory.
+- [ ] Take the best ideas from the pre-commit and lefthook projects and integrate them into rustyhook.
+- [ ] ensure all tasks can operate in parallel
+- [ ] implement an "explain" command that can be used to explain the current configuration and any errors that may have occurred.
+- [ ] use uv to start all python hooks in a separate process
+- [ ] use fnm to start all node hooks in a separate process

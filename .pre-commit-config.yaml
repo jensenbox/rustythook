@@ -1,0 +1,91 @@
+# Pre-commit Configuration for RustyHook Testing
+# This configuration includes hooks for various languages and tools to ensure good coverage
+
+default_stages: [commit, push]
+fail_fast: true
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
+        description: This hook trims trailing whitespace
+        types: [text]
+        stages: [commit]
+      
+      - id: end-of-file-fixer
+        name: Fix End of Files
+        description: Ensures that a file is either empty, or ends with one newline
+        types: [text]
+        stages: [commit]
+      
+      - id: check-yaml
+        name: Check YAML
+        description: Checks yaml files for parseable syntax
+        types: [yaml]
+        stages: [commit]
+      
+      - id: check-added-large-files
+        name: Check for added large files
+        description: Prevents giant files from being committed
+        args: ['--maxkb=500']
+        stages: [commit]
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.262
+    hooks:
+      - id: ruff
+        name: Ruff Python Linter
+        description: An extremely fast Python linter
+        types: [python]
+        args: [--fix, --exit-non-zero-on-fix]
+        stages: [commit]
+
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        name: Rust Formatter
+        description: Runs rustfmt on all Rust files
+        types: [rust]
+        stages: [commit]
+      
+      - id: cargo-check
+        name: Rust Check
+        description: Checks the code for errors
+        types: [rust]
+        stages: [commit]
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.38.0
+    hooks:
+      - id: eslint
+        name: ESLint
+        description: Checks JavaScript files for errors
+        types: [javascript]
+        args: [--fix]
+        stages: [commit]
+        additional_dependencies:
+          - eslint@8.38.0
+          - eslint-config-standard@17.0.0
+
+  - repo: local
+    hooks:
+      - id: custom-shell-script
+        name: Custom Shell Script
+        description: A custom shell script that runs on all files
+        entry: ./scripts/custom-check.sh
+        language: script
+        types: [text]
+        stages: [commit]
+      
+      - id: custom-python-script
+        name: Custom Python Script
+        description: A custom Python script that runs on Python files
+        entry: python ./scripts/custom-python-check.py
+        language: python
+        types: [python]
+        stages: [commit]
+        additional_dependencies:
+          - requests==2.28.2

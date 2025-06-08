@@ -1,0 +1,88 @@
+name: Publish to Homebrew
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-and-publish:
+    name: Build and publish to Homebrew
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        target: x86_64-apple-darwin
+    
+    - name: Build
+      run: cargo build --release --target x86_64-apple-darwin
+    
+    - name: Install Homebrew
+      run: |
+        brew update
+    
+    - name: Calculate SHA256
+      id: sha
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+        # Create a tarball of the binary
+        mkdir -p target/packages
+        tar -czf target/packages/rustyhook-$VERSION-x86_64-apple-darwin.tar.gz -C target/x86_64-apple-darwin/release rh
+        
+        # Calculate SHA256
+        CHECKSUM=$(shasum -a 256 target/packages/rustyhook-$VERSION-x86_64-apple-darwin.tar.gz | awk '{print $1}')
+        echo "sha256=$CHECKSUM" >> $GITHUB_OUTPUT
+    
+    - name: Prepare Homebrew formula
+      run: |
+        VERSION=${{ steps.sha.outputs.version }}
+        SHA256=${{ steps.sha.outputs.sha256 }}
+        
+        # Create formula directory
+        mkdir -p homebrew-rustyhook
+        
+        # Copy and update formula
+        cp packaging/homebrew/rustyhook.rb homebrew-rustyhook/rustyhook.rb
+        
+        # Update version and SHA256
+        sed -i '' "s/version \".*\"/version \"$VERSION\"/" homebrew-rustyhook/rustyhook.rb
+        sed -i '' "s/sha256 \".*\"/sha256 \"$SHA256\"/" homebrew-rustyhook/rustyhook.rb
+    
+    - name: Setup Git
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+    
+    - name: Create or update Homebrew tap repository
+      run: |
+        # Clone the tap repository if it exists, or create a new one
+        if git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository_owner }}/homebrew-rustyhook.git 2>/dev/null; then
+          cd homebrew-rustyhook
+        else
+          mkdir -p homebrew-rustyhook
+          cd homebrew-rustyhook
+          git init
+          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository_owner }}/homebrew-rustyhook.git
+        fi
+        
+        # Copy the formula
+        cp ../homebrew-rustyhook/rustyhook.rb ./Formula/rustyhook.rb
+        
+        # Commit and push
+        git add Formula/rustyhook.rb
+        git commit -m "Update rustyhook to ${{ steps.sha.outputs.version }}"
+        git push -u origin main
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: homebrew-formula
+        path: homebrew-rustyhook/

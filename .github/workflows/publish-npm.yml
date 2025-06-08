@@ -1,0 +1,67 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-and-publish:
+    name: Build and publish to npm
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    
+    - name: Build
+      run: cargo build --release
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Prepare npm package
+      run: |
+        VERSION=$(grep '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+        
+        # Create npm package directory
+        mkdir -p npm-package/bin
+        
+        # Copy binary
+        cp target/release/rh npm-package/bin/
+        
+        # Copy npm package files
+        cp packaging/npm/package.json npm-package/
+        cp packaging/npm/install.js npm-package/
+        cp README.md npm-package/
+        
+        # Update version in package.json
+        sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" npm-package/package.json
+    
+    - name: Publish to npm
+      run: |
+        cd npm-package
+        npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    
+    - name: Build binaries for all platforms
+      run: |
+        # This would typically use cross-compilation or a matrix strategy
+        # For simplicity, we're just creating a placeholder
+        mkdir -p target/npm-binaries
+        echo "This would contain binaries for all platforms" > target/npm-binaries/README.txt
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: npm-package
+        path: npm-package/

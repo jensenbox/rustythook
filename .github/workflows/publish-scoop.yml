@@ -1,0 +1,94 @@
+name: Publish to Scoop
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-and-publish:
+    name: Build and publish to Scoop
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        target: x86_64-pc-windows-msvc
+    
+    - name: Build
+      run: cargo build --release --target x86_64-pc-windows-msvc
+    
+    - name: Calculate hash and prepare package
+      id: package
+      shell: pwsh
+      run: |
+        $VERSION = $env:GITHUB_REF -replace 'refs/tags/v', ''
+        echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+        
+        # Create a zip of the binary
+        New-Item -ItemType Directory -Path target/packages -Force
+        Compress-Archive -Path target/x86_64-pc-windows-msvc/release/rh.exe -DestinationPath target/packages/rustyhook-v$VERSION-x86_64-pc-windows-msvc.zip
+        
+        # Calculate SHA256
+        $HASH = (Get-FileHash -Path target/packages/rustyhook-v$VERSION-x86_64-pc-windows-msvc.zip -Algorithm SHA256).Hash.ToLower()
+        echo "sha256=$HASH" >> $env:GITHUB_OUTPUT
+    
+    - name: Prepare Scoop manifest
+      shell: pwsh
+      run: |
+        $VERSION = "${{ steps.package.outputs.version }}"
+        $HASH = "${{ steps.package.outputs.sha256 }}"
+        $REPO_OWNER = "${{ github.repository_owner }}"
+        
+        # Create scoop directory
+        New-Item -ItemType Directory -Path scoop-rustyhook -Force
+        
+        # Copy and update manifest
+        Copy-Item -Path packaging/scoop/rustyhook.json -Destination scoop-rustyhook/rustyhook.json
+        
+        # Update version, URL, and hash in the manifest
+        $manifest = Get-Content -Path scoop-rustyhook/rustyhook.json -Raw | ConvertFrom-Json
+        $manifest.version = $VERSION
+        $manifest.homepage = "https://github.com/$REPO_OWNER/rustyhook"
+        $manifest.architecture."64bit".url = "https://github.com/$REPO_OWNER/rustyhook/releases/download/v$VERSION/rustyhook-v$VERSION-x86_64-pc-windows-msvc.zip"
+        $manifest.architecture."64bit".hash = $HASH
+        $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path scoop-rustyhook/rustyhook.json
+    
+    - name: Setup Git
+      shell: pwsh
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+    
+    - name: Create or update Scoop bucket repository
+      shell: pwsh
+      run: |
+        # Clone the bucket repository if it exists, or create a new one
+        try {
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository_owner }}/scoop-rustyhook.git
+          cd scoop-rustyhook
+        } catch {
+          New-Item -ItemType Directory -Path scoop-rustyhook -Force
+          cd scoop-rustyhook
+          git init
+          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository_owner }}/scoop-rustyhook.git
+        }
+        
+        # Copy the manifest
+        Copy-Item -Path ../scoop-rustyhook/rustyhook.json -Destination ./rustyhook.json -Force
+        
+        # Commit and push
+        git add rustyhook.json
+        git commit -m "Update rustyhook to ${{ steps.package.outputs.version }}"
+        git push -u origin main
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: scoop-manifest
+        path: scoop-rustyhook/

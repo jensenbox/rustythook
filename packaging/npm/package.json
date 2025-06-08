@@ -1,0 +1,38 @@
+{
+  "name": "rustyhook",
+  "version": "0.1.0",
+  "description": "Blazing-fast, Rust-native Git hook runner",
+  "homepage": "https://github.com/your-org/rustyhook",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/rustyhook.git"
+  },
+  "license": "MIT",
+  "bin": {
+    "rh": "bin/rh"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "keywords": [
+    "git",
+    "hooks",
+    "pre-commit",
+    "rust"
+  ],
+  "author": "RustyHook Team",
+  "bugs": {
+    "url": "https://github.com/your-org/rustyhook/issues"
+  },
+  "dependencies": {
+    "binary-install": "^1.0.1"
+  },
+  "files": [
+    "bin",
+    "install.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=10"
+  }
+}

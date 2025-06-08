@@ -1,0 +1,78 @@
+name: Publish to GitHub Packages
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-and-publish:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    
+    - name: Build
+      run: cargo build --release
+    
+    - name: Run tests
+      run: cargo test --release
+    
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          latest
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: docker/Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+    
+    - name: Package binaries
+      run: |
+        mkdir -p target/packages
+        VERSION=$(grep '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+        
+        # Create a tarball of the binary
+        tar -czf target/packages/rustyhook-${VERSION}-linux-x86_64.tar.gz -C target/release rh
+        
+        # Create a zip of the binary
+        zip -j target/packages/rustyhook-${VERSION}-linux-x86_64.zip target/release/rh
+    
+    - name: Upload binaries to GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          target/packages/rustyhook-*.tar.gz
+          target/packages/rustyhook-*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload to GitHub Packages
+      uses: actions/upload-artifact@v3
+      with:
+        name: rustyhook-packages
+        path: target/packages/

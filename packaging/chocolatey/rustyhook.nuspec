@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>rustyhook</id>
+    <version>0.1.0</version>
+    <title>RustyHook</title>
+    <authors>RustyHook Team</authors>
+    <projectUrl>https://github.com/your-org/rustyhook</projectUrl>
+    <licenseUrl>https://github.com/your-org/rustyhook/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Blazing-fast, Rust-native Git hook runner designed to be a modern, drop-in replacement for pre-commit.</description>
+    <summary>A fast, language-agnostic Git hook runner written in Rust</summary>
+    <tags>git hooks pre-commit rust</tags>
+    <dependencies>
+      <dependency id="rust-ms" version="1.0.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

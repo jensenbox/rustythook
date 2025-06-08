@@ -1,0 +1,52 @@
+name: Publish to Cargo
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-and-publish:
+    name: Build and publish to crates.io
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    
+    - name: Build
+      run: cargo build --release
+    
+    - name: Run tests
+      run: cargo test --release
+    
+    - name: Extract version
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Verify Cargo.toml version
+      run: |
+        CARGO_VERSION=$(grep '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+        if [ "$CARGO_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+          echo "Error: Version in Cargo.toml ($CARGO_VERSION) does not match release tag (${{ steps.version.outputs.version }})"
+          exit 1
+        fi
+    
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: ${{ secrets.CRATES_IO_TOKEN }}
+    
+    - name: Publish to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: publish
+        args: --no-verify

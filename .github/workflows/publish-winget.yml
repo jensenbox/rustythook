@@ -1,0 +1,96 @@
+name: Publish to WinGet
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-and-publish:
+    name: Build and publish to WinGet
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        target: x86_64-pc-windows-msvc
+    
+    - name: Build
+      run: cargo build --release --target x86_64-pc-windows-msvc
+    
+    - name: Calculate hash and prepare package
+      id: package
+      shell: pwsh
+      run: |
+        $VERSION = $env:GITHUB_REF -replace 'refs/tags/v', ''
+        echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+        
+        # Create a zip of the binary
+        New-Item -ItemType Directory -Path target/packages -Force
+        Compress-Archive -Path target/x86_64-pc-windows-msvc/release/rh.exe -DestinationPath target/packages/rustyhook-v$VERSION-x86_64-pc-windows-msvc.zip
+        
+        # Calculate SHA256
+        $HASH = (Get-FileHash -Path target/packages/rustyhook-v$VERSION-x86_64-pc-windows-msvc.zip -Algorithm SHA256).Hash.ToLower()
+        echo "sha256=$HASH" >> $env:GITHUB_OUTPUT
+    
+    - name: Prepare WinGet manifest
+      id: manifest
+      shell: pwsh
+      run: |
+        $VERSION = "${{ steps.package.outputs.version }}"
+        $HASH = "${{ steps.package.outputs.sha256 }}"
+        $REPO_OWNER = "${{ github.repository_owner }}"
+        
+        # Create winget directory
+        New-Item -ItemType Directory -Path winget-manifest -Force
+        New-Item -ItemType Directory -Path winget-manifest/RustyHook.RustyHook/$VERSION -Force
+        
+        # Copy and update manifest
+        Copy-Item -Path packaging/winget/rustyhook.yaml -Destination winget-manifest/RustyHook.RustyHook/$VERSION/RustyHook.RustyHook.yaml
+        
+        # Update version, URL, and hash in the manifest
+        $manifestPath = "winget-manifest/RustyHook.RustyHook/$VERSION/RustyHook.RustyHook.yaml"
+        $manifestContent = Get-Content -Path $manifestPath -Raw
+        $manifestContent = $manifestContent -replace 'PackageVersion: .*', "PackageVersion: $VERSION"
+        $manifestContent = $manifestContent -replace 'PackageUrl: .*', "PackageUrl: https://github.com/$REPO_OWNER/rustyhook"
+        $manifestContent = $manifestContent -replace 'LicenseUrl: .*', "LicenseUrl: https://github.com/$REPO_OWNER/rustyhook/blob/main/LICENSE"
+        $manifestContent = $manifestContent -replace 'InstallerUrl: .*', "InstallerUrl: https://github.com/$REPO_OWNER/rustyhook/releases/download/v$VERSION/rustyhook-v$VERSION-x86_64-pc-windows-msvc.zip"
+        $manifestContent = $manifestContent -replace 'InstallerSha256: .*', "InstallerSha256: $HASH"
+        Set-Content -Path $manifestPath -Value $manifestContent
+        
+        echo "manifest_path=winget-manifest" >> $env:GITHUB_OUTPUT
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: winget-manifest
+        path: ${{ steps.manifest.outputs.manifest_path }}
+    
+    - name: Create PR to WinGet repository
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.WINGET_PR_TOKEN }}
+        path: ${{ steps.manifest.outputs.manifest_path }}
+        commit-message: "Add RustyHook version ${{ steps.package.outputs.version }}"
+        committer: GitHub <noreply@github.com>
+        author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
+        signoff: false
+        branch: rustyhook-${{ steps.package.outputs.version }}
+        delete-branch: true
+        title: "Add RustyHook version ${{ steps.package.outputs.version }}"
+        body: |
+          This PR adds the RustyHook package version ${{ steps.package.outputs.version }} to the WinGet repository.
+          
+          - Package: RustyHook
+          - Version: ${{ steps.package.outputs.version }}
+          - Publisher: RustyHook Team
+          
+          This is an automated PR created by the GitHub Actions workflow.
+        draft: false
+        base: master
+        repository: microsoft/winget-pkgs

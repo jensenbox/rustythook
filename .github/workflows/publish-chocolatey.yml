@@ -1,0 +1,87 @@
+name: Publish to Chocolatey
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-and-publish:
+    name: Build and publish to Chocolatey
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        target: x86_64-pc-windows-msvc
+    
+    - name: Build
+      run: cargo build --release --target x86_64-pc-windows-msvc
+    
+    - name: Install Chocolatey
+      run: |
+        Set-ExecutionPolicy Bypass -Scope Process -Force
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+        iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+    
+    - name: Prepare Chocolatey package
+      run: |
+        $version = (Get-Content Cargo.toml | Select-String -Pattern '^version = "(.+)"').Matches.Groups[1].Value
+        
+        # Create package directory
+        New-Item -ItemType Directory -Path choco-package -Force
+        New-Item -ItemType Directory -Path choco-package\tools -Force
+        
+        # Copy Chocolatey files
+        Copy-Item packaging\chocolatey\rustyhook.nuspec choco-package\
+        Copy-Item packaging\chocolatey\tools\*.ps1 choco-package\tools\
+        
+        # Update version in nuspec
+        $nuspec = Get-Content choco-package\rustyhook.nuspec
+        $nuspec = $nuspec -replace '<version>.*</version>', "<version>$version</version>"
+        Set-Content -Path choco-package\rustyhook.nuspec -Value $nuspec
+        
+        # Create binary directory
+        New-Item -ItemType Directory -Path choco-package\tools\bin -Force
+        
+        # Copy binary
+        Copy-Item target\x86_64-pc-windows-msvc\release\rh.exe choco-package\tools\bin\
+        
+        # Create verification file
+        $verificationFile = @"
+        VERIFICATION
+        Verification is intended to assist the Chocolatey moderators and community
+        in verifying that this package's contents are trustworthy.
+        
+        The binary included in this package is built from the source code at:
+        https://github.com/your-org/rustyhook
+        
+        The binary can be verified by comparing checksums:
+        - Use 'Get-FileHash choco-package\tools\bin\rh.exe' to get the hash
+        - Compare it with the hash published on the release page
+        "@
+        Set-Content -Path choco-package\tools\VERIFICATION.txt -Value $verificationFile
+    
+    - name: Pack Chocolatey package
+      run: |
+        cd choco-package
+        choco pack
+    
+    - name: Push to Chocolatey
+      run: |
+        cd choco-package
+        $nupkg = Get-ChildItem *.nupkg | Select-Object -First 1
+        choco push $nupkg --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
+      env:
+        CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: chocolatey-package
+        path: choco-package/*.nupkg

@@ -1,0 +1,21 @@
+{
+    "version": "0.1.0",
+    "description": "Blazing-fast, Rust-native Git hook runner",
+    "homepage": "https://github.com/your-org/rustyhook",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/your-org/rustyhook/releases/download/v0.1.0/rustyhook-v0.1.0-x86_64-pc-windows-msvc.zip",
+            "hash": "REPLACE_WITH_ACTUAL_HASH_AFTER_RELEASE"
+        }
+    },
+    "bin": "rh.exe",
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/your-org/rustyhook/releases/download/v$version/rustyhook-v$version-x86_64-pc-windows-msvc.zip"
+            }
+        }
+    }
+}
