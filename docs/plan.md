@@ -6,16 +6,14 @@ Tasks:
 - [x] create a github action to publish the documentation to github pages
 - [x] Update the README to include a section on how to convert from pre-commit to rustyhook
 - [x] Remove the duplicate code in the github actions by consolidating the build steps and deployment steps into a single workflow (the ones that relate to publishing that is)
-- [ ] create a command line tool that can be used to convert a pre-commit configuration file to rustyhook configuration file
-- [ ] expand all built in hooks to include all known hooks from https://pre-commit.com/hooks.html
-- [ ] enable logging to a file or other outputs other than just stdout
+- [x] enable logging to a file or other outputs other than just stdout
 - [ ] ensure logging levels are configurable and appropriate for all execution steps
 - [ ] enable using rustyhook in this repository as for pre-commit replacement and configure for a rust project
 - [ ] replace the use of pip with uv - potentially link to the source code so as to get the benefit without needing a local binary
 - [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
 - [ ] create tests for each hook and complete coverage
 - [ ] replace the npm and nvm install process with fnm if it makes sense to do so
-
+- [ ] expand all built in hooks to include all known hooks from https://pre-commit.com/hooks.html
 - [ ] Re-evaluate the use of python and other languages in the docker file as they are likely not needed
 - [ ] Update the `.junie/guidelines.md` file to include the new features and rust best practices
 - [ ] Use a mechanism to create and deploy semver compatible releases. Perhaps use cargo-release or some other mechanism to automatically generate release notes and create a tag - trigger a release on tag creation.
@@ -26,3 +24,5 @@ Tasks:
 - [ ] use uv to start all python hooks in a separate process
 - [ ] use fnm to start all node hooks in a separate process
 - [ ] Add a strict rust linter to the project
+- [ ] Expand the documentation to include a section on how to use rustyhook in a monorepo - ensure the code works with monorepos. It should allow different sub-directories to have different configurations. There should be the option of merging configurations or using the most specific configuration.
+  - [ ] Add a section to the documentation on how to use custom hooks. Ensure that the documentation includes a section on how we would prefer custom hooks to be written into the main application to reduce the time to execute the application and consider the utility for other users. Provide guidance that if the hook is very specific that you can extend it with any of the supported languages. We will likely need a central repository for users to publish custom hooks to.

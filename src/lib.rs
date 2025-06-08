@@ -7,10 +7,13 @@ pub mod toolchains;
 pub mod runner;
 pub mod cache;
 pub mod hooks;
+pub mod logging;
 
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
-use clap_complete::{generate, Generator, Shell as ClapShell};
+use clap_complete::{generate, Shell as ClapShell};
 use std::io;
+use std::path::PathBuf;
+use log::{debug, info, warn, error};
 
 /// Supported shells for completion script generation
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -38,6 +41,14 @@ pub struct Cli {
     /// Maximum number of hooks to run in parallel (0 means unlimited)
     #[arg(short, long, default_value_t = 0)]
     pub parallelism: usize,
+
+    /// Path to the log file (if not specified, logs will only go to stdout)
+    #[arg(long)]
+    pub log_file: Option<PathBuf>,
+
+    /// Log level (debug, info, warn, error)
+    #[arg(long, default_value = "info")]
+    pub log_level: String,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -86,50 +97,72 @@ pub enum Commands {
 pub fn main() {
     let cli = Cli::parse();
 
+    // Initialize the logger
+    let log_file = cli.log_file.clone().or_else(|| {
+        // If no log file is specified but we want to log to a file,
+        // use the default log file path
+        if std::env::var("RUSTYHOOK_LOG_TO_FILE").unwrap_or_default() == "true" {
+            Some(logging::default_log_file())
+        } else {
+            None
+        }
+    });
+
+    if let Err(e) = logging::init(log_file, Some(&cli.log_level)) {
+        eprintln!("Failed to initialize logger: {}", e);
+        return;
+    }
+
+    // Log the startup information
+    if let Some(log_path) = &cli.log_file {
+        info!("Logging to file: {}", log_path.display());
+    }
+    debug!("Log level set to: {}", cli.log_level);
+
     match cli.command {
         Commands::Run => {
-            println!("Running hooks using native config...");
+            info!("Running hooks using native config...");
             run_hooks_with_native_config();
         }
         Commands::Compat => {
-            println!("Running hooks using .pre-commit-config.yaml...");
+            info!("Running hooks using .pre-commit-config.yaml...");
             run_hooks_with_compat_config();
         }
         Commands::Convert { from_precommit, delete_original } => {
             if from_precommit {
-                println!("Converting from .pre-commit-config.yaml to .rustyhook/config.yaml...");
+                info!("Converting from .pre-commit-config.yaml to .rustyhook/config.yaml...");
                 if delete_original {
-                    println!("The original pre-commit config file will be deleted after conversion.");
+                    info!("The original pre-commit config file will be deleted after conversion.");
                 }
                 match config::convert_from_precommit::<&str>(None, None, delete_original) {
-                    Ok(_) => println!("Conversion successful!"),
-                    Err(e) => eprintln!("Error converting configuration: {:?}", e),
+                    Ok(_) => info!("Conversion successful!"),
+                    Err(e) => error!("Error converting configuration: {:?}", e),
                 }
             } else {
-                println!("Please specify --from-precommit to convert from pre-commit config");
+                warn!("Please specify --from-precommit to convert from pre-commit config");
             }
         }
         Commands::Init => {
-            println!("Creating starter .rustyhook/config.yaml...");
+            info!("Creating starter .rustyhook/config.yaml...");
             match config::create_starter_config::<&str>(None) {
-                Ok(_) => println!("Starter configuration created successfully!"),
-                Err(e) => eprintln!("Error creating starter configuration: {:?}", e),
+                Ok(_) => info!("Starter configuration created successfully!"),
+                Err(e) => error!("Error creating starter configuration: {:?}", e),
             }
         }
         Commands::List => {
-            println!("Listing all available hooks and their status...");
+            info!("Listing all available hooks and their status...");
             list_hooks();
         }
         Commands::Doctor => {
-            println!("Diagnosing issues with setup or environments...");
+            info!("Diagnosing issues with setup or environments...");
             diagnose_issues();
         }
         Commands::Clean => {
-            println!("Removing cached environments and tool installs...");
+            info!("Removing cached environments and tool installs...");
             clean_environments();
         }
         Commands::Completions { shell } => {
-            println!("Generating completion script for {:?}...", shell);
+            info!("Generating completion script for {:?}...", shell);
             generate_completion_script(shell);
         }
     }
@@ -145,33 +178,37 @@ fn run_hooks_with_native_config() {
             if cli.parallelism > 0 {
                 // Override the parallelism limit from the config with the one from the CLI
                 config.parallelism = cli.parallelism;
+                debug!("Overriding parallelism limit to: {}", cli.parallelism);
             }
 
             // Create a cache directory
             let cache_dir = std::env::temp_dir().join(".rustyhook");
             std::fs::create_dir_all(&cache_dir).unwrap_or_else(|e| {
-                eprintln!("Error creating cache directory: {}", e);
+                error!("Error creating cache directory: {}", e);
                 std::process::exit(1);
             });
+            debug!("Using cache directory: {}", cache_dir.display());
 
             // Create a hook resolver
             let mut resolver = runner::HookResolver::new(config, cache_dir);
+            debug!("Hook resolver created");
 
             // Get the list of files to check
             // For now, we'll just use all files in the current directory
             let files = get_files_to_check();
+            debug!("Found {} files to check", files.len());
 
             // Run all hooks
             match resolver.run_all_hooks(&files) {
-                Ok(_) => println!("All hooks passed!"),
+                Ok(_) => info!("All hooks passed!"),
                 Err(e) => {
-                    eprintln!("Error running hooks: {:?}", e);
+                    error!("Error running hooks: {:?}", e);
                     std::process::exit(1);
                 }
             }
         }
         Err(e) => {
-            eprintln!("Error finding configuration: {:?}", e);
+            error!("Error finding configuration: {:?}", e);
             std::process::exit(1);
         }
     }
@@ -182,41 +219,48 @@ fn run_hooks_with_compat_config() {
     // Find the pre-commit config
     match config::find_precommit_config() {
         Ok(precommit_config) => {
+            debug!("Found pre-commit configuration");
+
             // Convert to native config
             let mut config = config::convert_to_rustyhook_config(&precommit_config);
+            debug!("Converted pre-commit configuration to rustyhook configuration");
 
             // Get the parallelism limit from the CLI
             let cli = Cli::parse();
             if cli.parallelism > 0 {
                 // Override the parallelism limit from the config with the one from the CLI
                 config.parallelism = cli.parallelism;
+                debug!("Overriding parallelism limit to: {}", cli.parallelism);
             }
 
             // Create a cache directory
             let cache_dir = std::env::temp_dir().join(".rustyhook");
             std::fs::create_dir_all(&cache_dir).unwrap_or_else(|e| {
-                eprintln!("Error creating cache directory: {}", e);
+                error!("Error creating cache directory: {}", e);
                 std::process::exit(1);
             });
+            debug!("Using cache directory: {}", cache_dir.display());
 
             // Create a hook resolver
             let mut resolver = runner::HookResolver::new(config, cache_dir);
+            debug!("Hook resolver created");
 
             // Get the list of files to check
             // For now, we'll just use all files in the current directory
             let files = get_files_to_check();
+            debug!("Found {} files to check", files.len());
 
             // Run all hooks
             match resolver.run_all_hooks(&files) {
-                Ok(_) => println!("All hooks passed!"),
+                Ok(_) => info!("All hooks passed!"),
                 Err(e) => {
-                    eprintln!("Error running hooks: {:?}", e);
+                    error!("Error running hooks: {:?}", e);
                     std::process::exit(1);
                 }
             }
         }
         Err(e) => {
-            eprintln!("Error finding pre-commit configuration: {:?}", e);
+            error!("Error finding pre-commit configuration: {:?}", e);
             std::process::exit(1);
         }
     }
@@ -227,19 +271,22 @@ fn list_hooks() {
     // Find the native config
     match config::find_config() {
         Ok(config) => {
-            println!("Available hooks:");
+            info!("Available hooks:");
             for repo in &config.repos {
-                println!("Repository: {}", repo.repo);
+                info!("Repository: {}", repo.repo);
                 for hook in &repo.hooks {
-                    println!("  - {}: {}", hook.id, hook.name);
-                    println!("    Language: {}", hook.language);
-                    println!("    Files: {}", hook.files);
-                    println!("    Stages: {}", hook.stages.join(", "));
+                    info!("  - {}: {}", hook.id, hook.name);
+                    info!("    Language: {}", hook.language);
+                    info!("    Files: {}", hook.files);
+                    info!("    Stages: {}", hook.stages.join(", "));
                 }
             }
+            debug!("Found {} repositories with a total of {} hooks", 
+                  config.repos.len(), 
+                  config.repos.iter().map(|r| r.hooks.len()).sum::<usize>());
         }
         Err(e) => {
-            eprintln!("Error finding configuration: {:?}", e);
+            error!("Error finding configuration: {:?}", e);
             std::process::exit(1);
         }
     }
@@ -247,80 +294,122 @@ fn list_hooks() {
 
 /// Diagnose issues with setup or environments
 fn diagnose_issues() {
+    debug!("Starting diagnosis of setup and environments");
+
     // Check if the .rustyhook directory exists
     let rustyhook_dir = std::env::current_dir().unwrap().join(".rustyhook");
     if !rustyhook_dir.exists() {
-        println!("The .rustyhook directory does not exist. Run 'rustyhook init' to create it.");
+        info!("The .rustyhook directory does not exist. Run 'rustyhook init' to create it.");
     } else {
-        println!("The .rustyhook directory exists.");
+        info!("The .rustyhook directory exists.");
     }
 
     // Check if the config file exists
     let config_file = rustyhook_dir.join("config.yaml");
     if !config_file.exists() {
-        println!("The .rustyhook/config.yaml file does not exist. Run 'rustyhook init' to create it.");
+        info!("The .rustyhook/config.yaml file does not exist. Run 'rustyhook init' to create it.");
     } else {
-        println!("The .rustyhook/config.yaml file exists.");
+        info!("The .rustyhook/config.yaml file exists.");
     }
 
     // Check if the cache directory exists
     let cache_dir = rustyhook_dir.join("cache");
     if !cache_dir.exists() {
-        println!("The .rustyhook/cache directory does not exist. It will be created when needed.");
+        info!("The .rustyhook/cache directory does not exist. It will be created when needed.");
     } else {
-        println!("The .rustyhook/cache directory exists.");
+        info!("The .rustyhook/cache directory exists.");
     }
 
     // Check if the venvs directory exists
     let venvs_dir = rustyhook_dir.join("venvs");
     if !venvs_dir.exists() {
-        println!("The .rustyhook/venvs directory does not exist. It will be created when needed.");
+        info!("The .rustyhook/venvs directory does not exist. It will be created when needed.");
     } else {
-        println!("The .rustyhook/venvs directory exists.");
+        info!("The .rustyhook/venvs directory exists.");
     }
 
     // Check if Python is installed
     match which::which("python3") {
-        Ok(_) => println!("Python 3 is installed."),
-        Err(_) => println!("Python 3 is not installed. Some hooks may not work."),
+        Ok(path) => {
+            info!("Python 3 is installed at: {}", path.display());
+            debug!("Python 3 found at path: {}", path.display());
+        },
+        Err(_) => {
+            warn!("Python 3 is not installed. Some hooks may not work.");
+            debug!("Failed to find Python 3 in PATH");
+        },
     }
 
     // Check if Node.js is installed
     match which::which("node") {
-        Ok(_) => println!("Node.js is installed."),
-        Err(_) => println!("Node.js is not installed. Some hooks may not work."),
+        Ok(path) => {
+            info!("Node.js is installed at: {}", path.display());
+            debug!("Node.js found at path: {}", path.display());
+        },
+        Err(_) => {
+            warn!("Node.js is not installed. Some hooks may not work.");
+            debug!("Failed to find Node.js in PATH");
+        },
     }
 
     // Check if Ruby is installed
     match which::which("ruby") {
-        Ok(_) => println!("Ruby is installed."),
-        Err(_) => println!("Ruby is not installed. Some hooks may not work."),
+        Ok(path) => {
+            info!("Ruby is installed at: {}", path.display());
+            debug!("Ruby found at path: {}", path.display());
+        },
+        Err(_) => {
+            warn!("Ruby is not installed. Some hooks may not work.");
+            debug!("Failed to find Ruby in PATH");
+        },
     }
+
+    debug!("Diagnosis completed");
 }
 
 /// Remove cached environments and tool installs
 fn clean_environments() {
+    debug!("Starting cleanup of cached environments and tool installs");
+
     // Remove the .rustyhook/cache directory
     let cache_dir = std::env::current_dir().unwrap().join(".rustyhook").join("cache");
     if cache_dir.exists() {
+        debug!("Found cache directory at: {}", cache_dir.display());
         match std::fs::remove_dir_all(&cache_dir) {
-            Ok(_) => println!("Removed .rustyhook/cache directory."),
-            Err(e) => eprintln!("Error removing .rustyhook/cache directory: {}", e),
+            Ok(_) => {
+                info!("Removed .rustyhook/cache directory.");
+                debug!("Successfully removed directory: {}", cache_dir.display());
+            },
+            Err(e) => {
+                error!("Error removing .rustyhook/cache directory: {}", e);
+                debug!("Failed to remove directory: {}, error: {}", cache_dir.display(), e);
+            },
         }
     } else {
-        println!("The .rustyhook/cache directory does not exist.");
+        info!("The .rustyhook/cache directory does not exist.");
+        debug!("Cache directory not found at: {}", cache_dir.display());
     }
 
     // Remove the .rustyhook/venvs directory
     let venvs_dir = std::env::current_dir().unwrap().join(".rustyhook").join("venvs");
     if venvs_dir.exists() {
+        debug!("Found venvs directory at: {}", venvs_dir.display());
         match std::fs::remove_dir_all(&venvs_dir) {
-            Ok(_) => println!("Removed .rustyhook/venvs directory."),
-            Err(e) => eprintln!("Error removing .rustyhook/venvs directory: {}", e),
+            Ok(_) => {
+                info!("Removed .rustyhook/venvs directory.");
+                debug!("Successfully removed directory: {}", venvs_dir.display());
+            },
+            Err(e) => {
+                error!("Error removing .rustyhook/venvs directory: {}", e);
+                debug!("Failed to remove directory: {}, error: {}", venvs_dir.display(), e);
+            },
         }
     } else {
-        println!("The .rustyhook/venvs directory does not exist.");
+        info!("The .rustyhook/venvs directory does not exist.");
+        debug!("Venvs directory not found at: {}", venvs_dir.display());
     }
+
+    debug!("Cleanup completed");
 }
 
 /// Get the list of files to check
