@@ -1,0 +1,60 @@
+name: Common Build Steps
+
+on:
+  workflow_call:
+    inputs:
+      rust_target:
+        description: 'Rust target triple'
+        required: false
+        type: string
+        default: ''
+      run_tests:
+        description: 'Whether to run tests'
+        required: false
+        type: boolean
+        default: true
+    outputs:
+      version:
+        description: "Version extracted from the release tag"
+        value: ${{ jobs.build.outputs.version }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ inputs.os || 'ubuntu-latest' }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        target: ${{ inputs.rust_target }}
+    
+    - name: Build
+      run: |
+        if [ -n "${{ inputs.rust_target }}" ]; then
+          cargo build --release --target ${{ inputs.rust_target }}
+        else
+          cargo build --release
+        fi
+    
+    - name: Run tests
+      if: inputs.run_tests
+      run: |
+        if [ -n "${{ inputs.rust_target }}" ]; then
+          cargo test --release --target ${{ inputs.rust_target }}
+        else
+          cargo test --release
+        fi
+    
+    - name: Extract version
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT

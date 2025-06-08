@@ -5,6 +5,7 @@ Tasks:
 - [x] create documentation for the project that can be pushed to github pages using a github action
 - [x] create a github action to publish the documentation to github pages
 - [x] Update the README to include a section on how to convert from pre-commit to rustyhook
+- [x] Remove the duplicate code in the github actions by consolidating the build steps and deployment steps into a single workflow (the ones that relate to publishing that is)
 - [ ] create a command line tool that can be used to convert a pre-commit configuration file to rustyhook configuration file
 - [ ] expand all built in hooks to include all known hooks from https://pre-commit.com/hooks.html
 - [ ] enable logging to a file or other outputs other than just stdout
@@ -14,7 +15,7 @@ Tasks:
 - [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
 - [ ] create tests for each hook and complete coverage
 - [ ] replace the npm and nvm install process with fnm if it makes sense to do so
-- [ ] Remove the duplicate code in the github actions by consolidating the build steps and deployment steps into a single workflow
+
 - [ ] Re-evaluate the use of python and other languages in the docker file as they are likely not needed
 - [ ] Update the `.junie/guidelines.md` file to include the new features and rust best practices
 - [ ] Use a mechanism to create and deploy semver compatible releases. Perhaps use cargo-release or some other mechanism to automatically generate release notes and create a tag - trigger a release on tag creation.

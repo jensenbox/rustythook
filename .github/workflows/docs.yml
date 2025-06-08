@@ -35,4 +35,4 @@ jobs:
           publish_dir: ./docs/book/book
           publish_branch: gh-pages
           force_orphan: true
-          cname: rustyhook.com  # Optional: Set a custom domain
+          cname: rustyhook.dev
