@@ -96,6 +96,53 @@ impl NodeTool {
         Ok(platform.to_string())
     }
 
+    /// Read Node.js version from .node-version or .nvmrc file
+    fn read_node_version_file(dir: &Path) -> Option<String> {
+        // Start from the given directory and look for .node-version or .nvmrc file
+        let mut current_dir = Some(dir.to_path_buf());
+
+        while let Some(dir) = current_dir {
+            // Check for .node-version file
+            let node_version_file = dir.join(".node-version");
+            if node_version_file.exists() {
+                match fs::read_to_string(&node_version_file) {
+                    Ok(content) => {
+                        let version = content.trim().to_string();
+                        if !version.is_empty() {
+                            log::info!("Found Node.js version {} in {:?}", version, node_version_file);
+                            return Some(version);
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to read .node-version file: {}", e);
+                    }
+                }
+            }
+
+            // Check for .nvmrc file
+            let nvmrc_file = dir.join(".nvmrc");
+            if nvmrc_file.exists() {
+                match fs::read_to_string(&nvmrc_file) {
+                    Ok(content) => {
+                        let version = content.trim().to_string();
+                        if !version.is_empty() {
+                            log::info!("Found Node.js version {} in {:?}", version, nvmrc_file);
+                            return Some(version);
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to read .nvmrc file: {}", e);
+                    }
+                }
+            }
+
+            // Move up to the parent directory
+            current_dir = dir.parent().map(|p| p.to_path_buf());
+        }
+
+        None
+    }
+
     /// Determine the Node.js version to use
     fn determine_node_version(&self, specified_version: Option<&str>) -> Result<String, ToolError> {
         // If version is specified, use it
@@ -108,23 +155,9 @@ impl NodeTool {
             return Ok(version.to_string());
         }
 
-        // Check for .node-version or .nvmrc file
-        let node_version_file = Path::new(".node-version");
-        let nvmrc_file = Path::new(".nvmrc");
-
-        if node_version_file.exists() {
-            let version = fs::read_to_string(node_version_file)
-                .map_err(|e| ToolError::ExecutionError(format!("Failed to read .node-version file: {}", e)))?
-                .trim()
-                .to_string();
-            return Ok(version);
-        }
-
-        if nvmrc_file.exists() {
-            let version = fs::read_to_string(nvmrc_file)
-                .map_err(|e| ToolError::ExecutionError(format!("Failed to read .nvmrc file: {}", e)))?
-                .trim()
-                .to_string();
+        // Try to find .node-version or .nvmrc in the current directory or parent directories
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        if let Some(version) = Self::read_node_version_file(&current_dir) {
             return Ok(version);
         }
 

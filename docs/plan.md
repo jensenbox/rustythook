@@ -22,6 +22,7 @@ Tasks:
 - [x] Use a mechanism to create and deploy semver compatible releases. Perhaps use cargo-release or some other mechanism to automatically generate release notes and create a tag - trigger a release on tag creation.
 - [x] Use a github action or something that will automatically bump the next version using heuristics of the commit messages and PRs - like labelling and titles containing things like "fix" or "feat" but using industry standard conventions. At this phase, we can release a new version every time a PR is merged in. The release notes can use a popular release notes generator from the PRs since last release.
 - [ ] Remove the dependency on a base interpreter for python, node and ruby by downloading the required interpreters from the internet and installing locally. Make sure to abide by the correct versions in the .python-version and similar files. As this is for a monorepo you will need to ensure the use per sub-directory.
+- [ ] Use the instructions found at docs/ruby.md to replace the current process of installing Ruby. Pay special attention to all the tasks and requirements.
 - [ ] Take the best ideas from the pre-commit and lefthook projects and integrate them into rustyhook.
 - [ ] ensure all tasks can operate in parallel
 - [ ] implement an "explain" command that can be used to explain the current configuration and any errors that may have occurred.
@@ -68,3 +69,4 @@ Tasks:
 - [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
 - [ ] Add code coverage to the project and emit statistics on the coverage of the tests. Ideally the output should be in a format that can be used by codecov.io
 - [ ] Break up the hook tests into individual files per hook test - this should help adding more as it will keep things very tidy upon changes.
+- [ ] Enable each hook to be self-documentin. A given hook should know about all its options and how to set them. It will be useful to know these when crafting a configuration file. Ideally the documentation generator can use these values to auto-generate the documentation.

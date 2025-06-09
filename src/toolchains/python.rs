@@ -429,14 +429,9 @@ impl PythonTool {
 
     /// Create a virtualenv
     fn create_virtualenv(&self, ctx: &SetupContext) -> Result<(), ToolError> {
-        // Try to find Python on the system first
-        let python = match Self::find_python() {
-            Ok(path) => path,
-            Err(_) => {
-                // If Python is not found, download and install it
-                Self::install_python(ctx)?
-            }
-        };
+        // Always download and install Python to ensure we have the correct version
+        // and don't depend on system Python
+        let python = Self::install_python(ctx)?;
 
         // Create the installation directory if it doesn't exist
         std::fs::create_dir_all(&ctx.install_dir)?;
