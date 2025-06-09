@@ -50,6 +50,10 @@ pub struct Cli {
     #[arg(long, default_value = "info")]
     pub log_level: String,
 
+    /// Comma-separated list of hook IDs to skip
+    #[arg(long)]
+    pub skip: Option<String>,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -218,7 +222,7 @@ fn run_hooks_with_native_config() {
     // Find the native config
     match config::find_config() {
         Ok(mut config) => {
-            // Get the parallelism limit from the CLI
+            // Get the CLI options
             let cli = Cli::parse();
             if cli.parallelism > 0 {
                 // Override the parallelism limit from the config with the one from the CLI
@@ -237,6 +241,33 @@ fn run_hooks_with_native_config() {
             // Create a hook resolver
             let mut resolver = runner::HookResolver::new(config, cache_dir);
             debug!("Hook resolver created");
+
+            // Set hooks to skip if specified
+            if let Some(skip) = &cli.skip {
+                let hooks_to_skip: Vec<String> = skip.split(',')
+                    .map(|s| s.trim().to_string())
+                    .collect();
+                if !hooks_to_skip.is_empty() {
+                    debug!("Skipping hooks: {}", hooks_to_skip.join(", "));
+                    resolver.set_hooks_to_skip(hooks_to_skip);
+                }
+            }
+
+            // Check for environment variable to skip hooks
+            if let Ok(skip_env) = std::env::var("RUSTYHOOK_SKIP") {
+                if !skip_env.is_empty() {
+                    let env_hooks_to_skip: Vec<String> = skip_env.split(',')
+                        .map(|s| s.trim().to_string())
+                        .collect();
+                    if !env_hooks_to_skip.is_empty() {
+                        debug!("Skipping hooks from environment: {}", env_hooks_to_skip.join(", "));
+                        // Merge with any hooks already set to skip
+                        let mut all_hooks_to_skip = resolver.hooks_to_skip().clone();
+                        all_hooks_to_skip.extend(env_hooks_to_skip);
+                        resolver.set_hooks_to_skip(all_hooks_to_skip);
+                    }
+                }
+            }
 
             // Get the list of files to check
             // For now, we'll just use all files in the current directory
@@ -289,6 +320,33 @@ fn run_hooks_with_compat_config() {
             // Create a hook resolver
             let mut resolver = runner::HookResolver::new(config, cache_dir);
             debug!("Hook resolver created");
+
+            // Set hooks to skip if specified
+            if let Some(skip) = &cli.skip {
+                let hooks_to_skip: Vec<String> = skip.split(',')
+                    .map(|s| s.trim().to_string())
+                    .collect();
+                if !hooks_to_skip.is_empty() {
+                    debug!("Skipping hooks: {}", hooks_to_skip.join(", "));
+                    resolver.set_hooks_to_skip(hooks_to_skip);
+                }
+            }
+
+            // Check for environment variable to skip hooks
+            if let Ok(skip_env) = std::env::var("RUSTYHOOK_SKIP") {
+                if !skip_env.is_empty() {
+                    let env_hooks_to_skip: Vec<String> = skip_env.split(',')
+                        .map(|s| s.trim().to_string())
+                        .collect();
+                    if !env_hooks_to_skip.is_empty() {
+                        debug!("Skipping hooks from environment: {}", env_hooks_to_skip.join(", "));
+                        // Merge with any hooks already set to skip
+                        let mut all_hooks_to_skip = resolver.hooks_to_skip().clone();
+                        all_hooks_to_skip.extend(env_hooks_to_skip);
+                        resolver.set_hooks_to_skip(all_hooks_to_skip);
+                    }
+                }
+            }
 
             // Get the list of files to check
             // For now, we'll just use all files in the current directory

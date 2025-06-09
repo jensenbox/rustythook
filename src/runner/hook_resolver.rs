@@ -63,6 +63,8 @@ pub struct HookResolver {
     cache_dir: PathBuf,
     /// Tool cache
     tool_cache: HashMap<String, Box<dyn Tool>>,
+    /// Hooks to skip
+    hooks_to_skip: Vec<String>,
 }
 
 impl HookResolver {
@@ -72,7 +74,18 @@ impl HookResolver {
             config,
             cache_dir,
             tool_cache: HashMap::new(),
+            hooks_to_skip: Vec::new(),
         }
+    }
+
+    /// Set hooks to skip
+    pub fn set_hooks_to_skip(&mut self, hooks: Vec<String>) {
+        self.hooks_to_skip = hooks;
+    }
+
+    /// Get hooks to skip
+    pub fn hooks_to_skip(&self) -> &Vec<String> {
+        &self.hooks_to_skip
     }
 
     /// Get the configuration
@@ -254,9 +267,16 @@ impl HookResolver {
         // Collect all hooks first to avoid borrowing issues
         let hooks_to_run: Vec<(String, String)> = self.config.repos.iter()
             .flat_map(|repo| {
-                repo.hooks.iter().map(move |hook| (repo.repo.clone(), hook.id.clone()))
+                repo.hooks.iter()
+                    .filter(|hook| !self.hooks_to_skip.contains(&hook.id))
+                    .map(move |hook| (repo.repo.clone(), hook.id.clone()))
             })
             .collect();
+
+        // Log which hooks are being skipped
+        if !self.hooks_to_skip.is_empty() {
+            log::info!("Skipping hooks: {}", self.hooks_to_skip.join(", "));
+        }
 
         // Run each hook
         for (repo_id, hook_id) in hooks_to_run {
