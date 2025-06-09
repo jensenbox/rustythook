@@ -1,6 +1,6 @@
 //! Tests for toolchain functionality
 
-use rustyhook::toolchains::{PythonTool, Tool, SetupContext};
+use rustyhook::toolchains::{PythonTool, NodeTool, Tool, SetupContext};
 use std::path::PathBuf;
 
 #[test]

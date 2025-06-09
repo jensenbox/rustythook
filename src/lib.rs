@@ -385,15 +385,47 @@ fn diagnose_issues() {
         },
     }
 
-    // Check if Node.js is installed
-    match which::which("node") {
+    // Check if fnm (Fast Node Manager) is installed
+    match which::which("fnm") {
         Ok(path) => {
-            info!("Node.js is installed at: {}", path.display());
-            debug!("Node.js found at path: {}", path.display());
+            info!("fnm is installed at: {}", path.display());
+            debug!("fnm found at path: {}", path.display());
+
+            // Check if Node.js is installed via fnm
+            let output = std::process::Command::new("fnm")
+                .arg("list")
+                .output();
+
+            match output {
+                Ok(output) if output.status.success() => {
+                    let versions = String::from_utf8_lossy(&output.stdout);
+                    if !versions.trim().is_empty() {
+                        info!("Node.js is installed via fnm. Available versions: {}", versions.trim());
+                    } else {
+                        warn!("No Node.js versions installed via fnm. Some hooks may not work.");
+                        debug!("fnm list returned empty result");
+                    }
+                },
+                _ => {
+                    warn!("Failed to check Node.js versions via fnm. Some hooks may not work.");
+                    debug!("Failed to execute fnm list");
+                }
+            }
         },
         Err(_) => {
-            warn!("Node.js is not installed. Some hooks may not work.");
-            debug!("Failed to find Node.js in PATH");
+            // If fnm is not installed, check for Node.js directly
+            match which::which("node") {
+                Ok(path) => {
+                    info!("Node.js is installed at: {}", path.display());
+                    debug!("Node.js found at path: {}", path.display());
+                    info!("Consider installing fnm for better Node.js version management.");
+                },
+                Err(_) => {
+                    warn!("Neither fnm nor Node.js is installed. Some hooks may not work.");
+                    debug!("Failed to find fnm or Node.js in PATH");
+                    info!("RustyHook will attempt to install fnm and Node.js when needed.");
+                },
+            }
         },
     }
 
