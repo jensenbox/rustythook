@@ -17,16 +17,16 @@ build_for_target() {
     local target=$1
     local package_type=$2
     local extension=$3
-    
+
     echo "Building for $target..."
-    
+
     # Build the binary
     cargo build --release --target "$target"
-    
+
     # Create package directory
     local package_dir="$OUTPUT_DIR/$NAME-$VERSION-$target"
     mkdir -p "$package_dir/bin"
-    
+
     # Copy binary and license
     if [[ "$target" == *"windows"* ]]; then
         cp "target/$target/release/$BINARY_NAME.exe" "$package_dir/bin/"
@@ -35,7 +35,7 @@ build_for_target() {
     fi
     cp LICENSE "$package_dir/"
     cp README.md "$package_dir/"
-    
+
     # Create package
     echo "Creating $package_type package..."
     case "$package_type" in
@@ -58,7 +58,7 @@ build_for_target() {
             echo "PKG packaging requires additional tools. See packaging/installers/README.md"
             ;;
     esac
-    
+
     echo "Package created at $OUTPUT_DIR/$NAME-$VERSION-$target$extension"
 }
 

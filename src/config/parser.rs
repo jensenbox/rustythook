@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::fmt;
 
 /// Represents a complete RustyHook configuration
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,6 +35,29 @@ pub struct Repo {
 
     /// List of hooks in this repository
     pub hooks: Vec<Hook>,
+}
+
+/// Type of hook (built-in or external)
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum HookType {
+    /// Built-in hook that is part of RustyHook
+    BuiltIn,
+    /// External hook that is run as a separate command
+    External,
+}
+
+impl fmt::Display for HookType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            HookType::BuiltIn => write!(f, "built-in"),
+            HookType::External => write!(f, "external"),
+        }
+    }
+}
+
+/// Default hook type (external)
+fn default_hook_type() -> HookType {
+    HookType::External
 }
 
 /// Represents a single hook
@@ -70,6 +94,14 @@ pub struct Hook {
     /// Version of the tool to use
     #[serde(default)]
     pub version: Option<String>,
+
+    /// Whether this hook is built-in or external
+    #[serde(default = "default_hook_type")]
+    pub hook_type: HookType,
+
+    /// Whether to run this hook in a separate process
+    #[serde(default)]
+    pub separate_process: bool,
 }
 
 /// Default stages for hooks

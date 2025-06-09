@@ -127,11 +127,97 @@ pub fn convert_to_rustyhook_config(precommit_config: &PreCommitConfig) -> Config
         let mut hooks = Vec::new();
 
         for precommit_hook in &precommit_repo.hooks {
+            // Determine the appropriate language and entry based on the hook
+            let (language, entry) = if let Some(lang) = &precommit_hook.language {
+                if lang == "python" {
+                    // For Python hooks, use the python language and install the package
+                    (
+                        "python".to_string(),
+                        precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
+                    )
+                } else if lang == "node" || lang == "javascript" || lang == "typescript" {
+                    // For Node.js hooks, use the node language
+                    (
+                        "node".to_string(),
+                        precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
+                    )
+                } else if lang == "ruby" {
+                    // For Ruby hooks, use the ruby language
+                    (
+                        "ruby".to_string(),
+                        precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
+                    )
+                } else {
+                    // For other languages, use the system language
+                    (
+                        "system".to_string(),
+                        precommit_hook.entry.clone().unwrap_or_else(|| format!("pre-commit-hooks {}", precommit_hook.id))
+                    )
+                }
+            } else {
+                // If no language is specified, determine it based on the repo URL
+                if precommit_repo.repo.contains("pre-commit/pre-commit-hooks") {
+                    // For pre-commit hooks, use the python language and install pre-commit-hooks
+                    (
+                        "python".to_string(),
+                        format!("pre-commit-hooks {}", precommit_hook.id)
+                    )
+                } else if precommit_repo.repo.contains("astral-sh/ruff-pre-commit") {
+                    // For ruff hooks, use the python language and install ruff
+                    (
+                        "python".to_string(),
+                        format!("ruff {}", precommit_hook.id)
+                    )
+                } else if precommit_repo.repo.contains("shellcheck-py/shellcheck-py") {
+                    // For shellcheck hooks, use the python language and install shellcheck-py
+                    (
+                        "python".to_string(),
+                        format!("shellcheck {}", precommit_hook.id)
+                    )
+                } else if precommit_repo.repo.contains("biomejs/pre-commit") {
+                    // For biome hooks, use the node language and install @biomejs/biome
+                    (
+                        "node".to_string(),
+                        format!("biome {}", precommit_hook.id)
+                    )
+                } else if precommit_repo.repo.contains("scop/pre-commit-shfmt") {
+                    // For shfmt hooks, use the system language
+                    (
+                        "system".to_string(),
+                        format!("shfmt {}", precommit_hook.id)
+                    )
+                } else if precommit_repo.repo.contains("codespell-project/codespell") {
+                    // For codespell hooks, use the python language and install codespell
+                    (
+                        "python".to_string(),
+                        format!("codespell {}", precommit_hook.id)
+                    )
+                } else if precommit_repo.repo.contains("google/yamlfmt") {
+                    // For yamlfmt hooks, use the system language
+                    (
+                        "system".to_string(),
+                        format!("yamlfmt {}", precommit_hook.id)
+                    )
+                } else if precommit_repo.repo.contains("rtts/djhtml") {
+                    // For djhtml hooks, use the python language and install djhtml
+                    (
+                        "python".to_string(),
+                        format!("djhtml {}", precommit_hook.id)
+                    )
+                } else {
+                    // For other repos, use the system language
+                    (
+                        "system".to_string(),
+                        precommit_hook.entry.clone().unwrap_or_else(|| format!("pre-commit-hooks {}", precommit_hook.id))
+                    )
+                }
+            };
+
             let hook = Hook {
                 id: precommit_hook.id.clone(),
                 name: precommit_hook.name.clone().unwrap_or_else(|| precommit_hook.id.clone()),
-                entry: precommit_hook.entry.clone().unwrap_or_else(|| format!("pre-commit-hooks {}", precommit_hook.id)),
-                language: precommit_hook.language.clone().unwrap_or_else(|| "system".to_string()),
+                entry,
+                language,
                 files: precommit_hook.files.clone().unwrap_or_default(),
                 stages: precommit_hook.stages.clone().unwrap_or_else(|| precommit_config.default_stages.clone()),
                 args: precommit_hook.args.clone().unwrap_or_default(),

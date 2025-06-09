@@ -8,14 +8,17 @@ Tasks:
 - [x] Remove the duplicate code in the github actions by consolidating the build steps and deployment steps into a single workflow (the ones that relate to publishing that is)
 - [x] enable logging to a file or other outputs other than just stdout
 - [x] ensure logging levels are configurable and appropriate for all execution steps
-- [ ] enable using rustyhook in this repository as for pre-commit replacement and configure for a rust project
-- [ ] replace the use of pip with uv - potentially link to the source code so as to get the benefit without needing a local binary
+- [x] enable using rustyhook in this repository as for pre-commit replacement and configure for a rust project
+- [x] Update the `.junie/guidelines.md` file to include the new features and rust best practices
+- [ ] We need a fundamental change in the way we run hooks. The configuration file should be used to create the context for each task we want to run and the context should contain the entry we are needing to run as a process. We need to be able to specify hooks that are to be ran from the built-in hooks versus hooks that are external. We could potentially run them in the same process or in a separate process. If we choose to run them in a separate process then we need to ensure that there is a cli command that the entry can point to. This will allow us to run the hooks in parallel and also allow us to run hooks in a different process than the main application. Should help debugging specific hooks.
+- [ ] Make sure that the file in `docs/.pre-commit-config.yaml` can be ran and converted to the rustyhook configuration file format. Importantly it should set up its own python environment and install the required packages without needing the system to have anything installed.
+- [ ] replace the use of pip with uv - potentially link to the source code so as to get the benefit without needing a local binary. This should help speed up the installation of a python interpreter as well as improve the performance ot package installation. We will likely be able to remove a substantial amount of the code we have in our source code for installing python interpreters and installing packages.
 - [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
 - [ ] create tests for each hook and complete coverage
 - [ ] replace the npm and nvm install process with fnm if it makes sense to do so
 - [ ] expand all built in hooks to include all known hooks from https://pre-commit.com/hooks.html
 - [ ] Re-evaluate the use of python and other languages in the docker file as they are likely not needed
-- [ ] Update the `.junie/guidelines.md` file to include the new features and rust best practices
+
 - [ ] Use a mechanism to create and deploy semver compatible releases. Perhaps use cargo-release or some other mechanism to automatically generate release notes and create a tag - trigger a release on tag creation.
 - [ ] Remove the dependency on a base interpreter for python, node and ruby by downloading the required interpreters from the internet and installing locally. Make sure to abide by the correct versions in the .python-version and similar files. As this is for a monorepo you will need to ensure the use per sub-directory.
 - [ ] Take the best ideas from the pre-commit and lefthook projects and integrate them into rustyhook.
@@ -25,4 +28,38 @@ Tasks:
 - [ ] use fnm to start all node hooks in a separate process
 - [ ] Add a strict rust linter to the project
 - [ ] Expand the documentation to include a section on how to use rustyhook in a monorepo - ensure the code works with monorepos. It should allow different sub-directories to have different configurations. There should be the option of merging configurations or using the most specific configuration.
-  - [ ] Add a section to the documentation on how to use custom hooks. Ensure that the documentation includes a section on how we would prefer custom hooks to be written into the main application to reduce the time to execute the application and consider the utility for other users. Provide guidance that if the hook is very specific that you can extend it with any of the supported languages. We will likely need a central repository for users to publish custom hooks to.
+- [ ] Add a section to the documentation on how to use custom hooks. Ensure that the documentation includes a section on how we would prefer custom hooks to be written into the main application to reduce the time to execute the application and consider the utility for other users. Provide guidance that if the hook is very specific that you can extend it with any of the supported languages. We will likely need a central repository for users to publish custom hooks to.
+- [ ] Ensure that the deployed version of the documentation is updated when a new release is created. Also make sure that the application reports its version and matches the release version.
+- [ ] Use the default mdBook theme for the documentation and github pages. Perhaps the only customization would be the use of the font "Inter". I am looking for a clean theme that works well out of the box for desktop and mobile.
+- [ ] From the pre-commit repository https://github.com/pre-commit/pre-commit-hooks please implement the following hooks:
+  - [ ] check-added-large-files
+  - [ ] check-ast
+  - [ ] check-builtin-literals
+  - [ ] check-case-conflict
+  - [ ] check-docstring-first
+  - [ ] check-executables-have-shebangs
+  - [ ] check-json
+  - [ ] check-merge-conflict
+  - [ ] check-symlinks
+  - [ ] check-toml
+  - [ ] check-xml
+  - [ ] check-yaml
+  - [ ] debug-statements
+  - [ ] detect-aws-credentials
+  - [ ] detect-private-key
+  - [ ] double-quote-string-fixer
+  - [ ] end-of-file-fixer
+  - [ ] file-contents-sorter
+  - [ ] fix-byte-order-marker
+  - [ ] fix-encoding-pragma
+  - [ ] fix-merge-conflict
+  - [ ] forbid-new-submodules
+  - [ ] mixed-line-ending
+  - [ ] name-tests-test
+  - [ ] no-commit-to-branch
+  - [ ] pretty-format-json
+  - [ ] requirements-txt-fixer
+  - [ ] sort-simple-yaml
+  - [ ] trailing-whitespace
+- [ ] When running each test, ensure that the caches have been cleared first.
+- [ ] Lets remove the `rh` executable and rename it to `rustyhook` - we will use a shell alias to make `rustyhook` available as `rh`. We can add that alias as part of the installation process - perhaps in the completion scripts.

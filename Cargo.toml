@@ -9,7 +9,6 @@ clap_complete = "4.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 serde_json = "1.0"
-toml = "0.8"
 regex = "1.10"
 globset = "0.4"
 which = "5.0"
@@ -18,9 +17,16 @@ walkdir = "2.4"
 tempfile = "3.8"
 log = "0.4"
 env_logger = "0.10"
-fern = "0.6"
 chrono = "0.4"
+reqwest = { version = "0.11", features = ["blocking"] }
+flate2 = "1.0"
+tar = "0.4"
+zip = "0.6"
 
 [[bin]]
 name = "rh"
 path = "src/bin/rh.rs"
+
+[[bin]]
+name = "rustyhook-hooks"
+path = "src/bin/rustyhook_hooks.rs"

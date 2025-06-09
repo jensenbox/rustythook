@@ -127,7 +127,10 @@ pub fn init(log_file: Option<PathBuf>, log_level: Option<&str>) -> Result<(), St
         )
     });
 
-    // If a log file is provided, add a file logger
+    // Always log to stdout
+    builder.target(env_logger::Target::Stdout);
+
+    // If a log file is provided, also log to the file
     if let Some(log_file_path) = log_file {
         // Create the parent directory if it doesn't exist
         if let Some(parent) = log_file_path.parent() {
@@ -138,8 +141,32 @@ pub fn init(log_file: Option<PathBuf>, log_level: Option<&str>) -> Result<(), St
         let file = File::create(&log_file_path)
             .map_err(|e| format!("Failed to create log file: {}", e))?;
 
-        // Add the file logger
-        builder.target(env_logger::Target::Pipe(Box::new(file)));
+        // Create a separate builder for the file logger
+        let mut file_builder = Builder::new();
+
+        // Apply the same filter level
+        if let Some(filter) = &module_filter {
+            file_builder.parse_filters(filter);
+        } else {
+            file_builder.filter_level(level_filter);
+        }
+
+        // Set the same format
+        file_builder.format(|buf, record| {
+            writeln!(
+                buf,
+                "{} [{}] - {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                record.level(),
+                record.args()
+            )
+        });
+
+        // Set the file as the target
+        file_builder.target(env_logger::Target::Pipe(Box::new(file)));
+
+        // Initialize the file logger with a unique name
+        file_builder.init();
     }
 
     // Initialize the logger

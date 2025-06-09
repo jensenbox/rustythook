@@ -1,0 +1,82 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+
+exclude: |
+  (?x)^(
+     .*/migrations/.* |
+     .*/openapi_client/.* |
+     \.idea/.* |
+     .*.package-lock.json
+  )$
+
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      #      - id: trailing-whitespace
+      #      - id: end-of-file-fixer
+      - id: check-yaml
+        #        args: [ --allow-multiple-documents ]
+      - id: check-added-large-files
+      - id: check-json
+      - id: check-toml
+      - id: name-tests-test
+        args:
+          - --pytest-test-first
+        exclude: .*/factories.py
+      - id: pretty-format-json
+        args:
+          - --autofix
+          - --no-sort-keys
+      - id: no-commit-to-branch
+        name: Prevent commit to main branch
+      - id: check-shebang-scripts-are-executable
+      - id: mixed-line-ending
+      - id: detect-aws-credentials
+        args:
+          - --allow-missing-credentials
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.3
+    hooks:
+      - id: ruff
+        args: ["--fix", "--unsafe-fixes"]
+      - id: ruff-format
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+
+  - repo: https://github.com/biomejs/pre-commit
+    rev: "v0.6.1"
+    hooks:
+      - id: biome-check
+        additional_dependencies: ["@biomejs/biome@1.8.3"]
+        args:
+          - --changed
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.10.0-2
+    hooks:
+      - id: shfmt
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        exclude: \.csv$
+
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.14.0
+    hooks:
+      - id: yamlfmt
+
+  - repo: https://github.com/rtts/djhtml
+    rev: '3.0.7'
+    hooks:
+      - id: djhtml
+        files: .*/templates/.*\.html$

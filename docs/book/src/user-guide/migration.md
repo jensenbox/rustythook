@@ -41,7 +41,7 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
-  
+
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.38.0
     hooks:
@@ -64,7 +64,7 @@ hooks:
     entry: "ruff"
     args: ["--fix"]
     files: "\\.py$"
-  
+
   - id: eslint
     language: node
     version: "^8.38.0"
@@ -79,19 +79,19 @@ hooks:
 
 1. **Repository References**: RustyHook doesn't use the `repos` structure. Instead, it directly defines hooks with their language and version.
 
-2. **Version Specification**: 
+2. **Version Specification**:
    - pre-commit uses Git revisions (`rev`)
    - RustyHook uses package version specifiers (`version`)
 
-3. **Dependencies**: 
+3. **Dependencies**:
    - pre-commit uses `additional_dependencies`
    - RustyHook uses `dependencies`
 
-4. **Entry Point**: 
+4. **Entry Point**:
    - pre-commit infers the entry point from the hook ID
    - RustyHook requires an explicit `entry` field
 
-5. **File Patterns**: 
+5. **File Patterns**:
    - Both use similar regex patterns, but RustyHook always requires the `files` field if you want to filter by file type
 
 ## Migrating Git Hooks

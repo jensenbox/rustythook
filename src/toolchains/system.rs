@@ -65,17 +65,35 @@ impl Tool for SystemTool {
             .map(|f| f.to_string_lossy().to_string())
             .collect();
 
-        // Run the command
-        let status = Command::new(cmd)
-            .args(args)
-            .args(file_args)
-            .status()
+        // Create string representations for logging before moving the vectors
+        let args_str = args.join(" ");
+        let file_args_str = file_args.join(" ");
+
+        // Run the command with output capture
+        let output = Command::new(cmd)
+            .args(&args)  // Use reference to avoid moving
+            .args(&file_args)  // Use reference to avoid moving
+            .output()
             .map_err(|e| ToolError::ExecutionError(format!("Failed to execute command: {}", e)))?;
 
-        if status.success() {
+        // Check the status
+        if output.status.success() {
             Ok(())
         } else {
-            Err(ToolError::ExecutionError(format!("Command failed with exit code: {:?}", status.code())))
+            // Try to convert stdout and stderr to strings, but handle non-UTF-8 data
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+
+            // Log the command and its output
+            log::error!("Command failed: {} {} {}", cmd, args_str, file_args_str);
+            if !stdout.is_empty() {
+                log::error!("Command stdout: {}", stdout);
+            }
+            if !stderr.is_empty() {
+                log::error!("Command stderr: {}", stderr);
+            }
+
+            Err(ToolError::ExecutionError(format!("Command failed with exit code: {:?}", output.status.code())))
         }
     }
 

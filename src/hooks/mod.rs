@@ -44,7 +44,19 @@ impl Hook for TrailingWhitespace {
     fn run(&self, files: &[PathBuf]) -> Result<(), HookError> {
         for file in files {
             // Read the file
-            let content = fs::read_to_string(file)?;
+            let content = match fs::read(file) {
+                Ok(content) => content,
+                Err(e) => {
+                    if e.kind() == std::io::ErrorKind::PermissionDenied {
+                        // Skip files that can't be accessed due to permission issues
+                        log::warn!("Skipping file due to permission denied: {}", file.display());
+                        continue;
+                    } else {
+                        return Err(HookError::IoError(e));
+                    }
+                }
+            };
+            let content = String::from_utf8_lossy(&content);
 
             // Check if the file has trailing whitespace
             let mut has_trailing_whitespace = false;
@@ -61,7 +73,15 @@ impl Hook for TrailingWhitespace {
 
             // If the file has trailing whitespace, fix it
             if has_trailing_whitespace {
-                fs::write(file, new_content)?;
+                if let Err(e) = fs::write(file, new_content) {
+                    if e.kind() == std::io::ErrorKind::PermissionDenied {
+                        // Skip files that can't be written to due to permission issues
+                        log::warn!("Skipping file write due to permission denied: {}", file.display());
+                        continue;
+                    } else {
+                        return Err(HookError::IoError(e));
+                    }
+                }
             }
         }
 
@@ -76,17 +96,37 @@ impl Hook for EndOfFileFixer {
     fn run(&self, files: &[PathBuf]) -> Result<(), HookError> {
         for file in files {
             // Read the file
-            let content = fs::read_to_string(file)?;
+            let content = match fs::read(file) {
+                Ok(content) => content,
+                Err(e) => {
+                    if e.kind() == std::io::ErrorKind::PermissionDenied {
+                        // Skip files that can't be accessed due to permission issues
+                        log::warn!("Skipping file due to permission denied: {}", file.display());
+                        continue;
+                    } else {
+                        return Err(HookError::IoError(e));
+                    }
+                }
+            };
+            let content_str = String::from_utf8_lossy(&content);
 
             // Check if the file is empty or ends with a newline
-            if content.is_empty() || content.ends_with('\n') {
+            if content_str.is_empty() || content_str.ends_with('\n') {
                 continue;
             }
 
             // Fix the file
-            let mut new_content = content;
+            let mut new_content = content_str.to_string();
             new_content.push('\n');
-            fs::write(file, new_content)?;
+            if let Err(e) = fs::write(file, new_content) {
+                if e.kind() == std::io::ErrorKind::PermissionDenied {
+                    // Skip files that can't be written to due to permission issues
+                    log::warn!("Skipping file write due to permission denied: {}", file.display());
+                    continue;
+                } else {
+                    return Err(HookError::IoError(e));
+                }
+            }
         }
 
         Ok(())
@@ -100,10 +140,11 @@ impl Hook for CheckYaml {
     fn run(&self, files: &[PathBuf]) -> Result<(), HookError> {
         for file in files {
             // Read the file
-            let content = fs::read_to_string(file)?;
+            let content = fs::read(file)?;
+            let content_str = String::from_utf8_lossy(&content);
 
             // Try to parse the YAML
-            match serde_yaml::from_str::<serde_yaml::Value>(&content) {
+            match serde_yaml::from_str::<serde_yaml::Value>(&content_str) {
                 Ok(_) => continue,
                 Err(err) => return Err(HookError::Other(format!("Invalid YAML in {}: {}", file.display(), err))),
             }
@@ -150,10 +191,11 @@ impl Hook for CheckMergeConflict {
     fn run(&self, files: &[PathBuf]) -> Result<(), HookError> {
         for file in files {
             // Read the file
-            let content = fs::read_to_string(file)?;
+            let content = fs::read(file)?;
+            let content_str = String::from_utf8_lossy(&content);
 
             // Check for merge conflict markers
-            if content.contains("<<<<<<<") || content.contains("=======") || content.contains(">>>>>>>") {
+            if content_str.contains("<<<<<<<") || content_str.contains("=======") || content_str.contains(">>>>>>>") {
                 return Err(HookError::Other(format!("Merge conflict markers found in {}", file.display())));
             }
         }
@@ -169,10 +211,11 @@ impl Hook for CheckJson {
     fn run(&self, files: &[PathBuf]) -> Result<(), HookError> {
         for file in files {
             // Read the file
-            let content = fs::read_to_string(file)?;
+            let content = fs::read(file)?;
+            let content_str = String::from_utf8_lossy(&content);
 
             // Try to parse the JSON
-            match serde_json::from_str::<serde_json::Value>(&content) {
+            match serde_json::from_str::<serde_json::Value>(&content_str) {
                 Ok(_) => continue,
                 Err(err) => return Err(HookError::Other(format!("Invalid JSON in {}: {}", file.display(), err))),
             }
@@ -189,7 +232,8 @@ impl Hook for CheckToml {
     fn run(&self, files: &[PathBuf]) -> Result<(), HookError> {
         for file in files {
             // Read the file
-            let content = fs::read_to_string(file)?;
+            let content = fs::read(file)?;
+            let content_str = String::from_utf8_lossy(&content);
 
             // This is a simple check that looks for basic TOML syntax errors
             // A more robust solution would use a proper TOML parser
@@ -197,7 +241,7 @@ impl Hook for CheckToml {
             // Check for key-value pairs
             let mut has_key_value = false;
 
-            for line in content.lines() {
+            for line in content_str.lines() {
                 let line = line.trim();
 
                 // Skip empty lines and comments
@@ -220,7 +264,7 @@ impl Hook for CheckToml {
                 return Err(HookError::Other(format!("Invalid TOML in {}: unexpected line format", file.display())));
             }
 
-            if !has_key_value && !content.is_empty() {
+            if !has_key_value && !content_str.is_empty() {
                 return Err(HookError::Other(format!("Invalid TOML in {}: no key-value pairs found", file.display())));
             }
         }
@@ -236,12 +280,13 @@ impl Hook for CheckXml {
     fn run(&self, files: &[PathBuf]) -> Result<(), HookError> {
         for file in files {
             // Read the file
-            let content = fs::read_to_string(file)?;
+            let content = fs::read(file)?;
+            let content_str = String::from_utf8_lossy(&content);
 
             // Try to parse the XML
             // This is a simple check that looks for basic XML syntax errors
             // A more robust solution would use a proper XML parser
-            if !content.contains("<") || !content.contains(">") {
+            if !content_str.contains("<") || !content_str.contains(">") {
                 return Err(HookError::Other(format!("Invalid XML in {}: missing tags", file.display())));
             }
 
@@ -249,7 +294,7 @@ impl Hook for CheckXml {
             let mut open_tags = 0;
             let mut close_tags = 0;
 
-            for c in content.chars() {
+            for c in content_str.chars() {
                 if c == '<' {
                     open_tags += 1;
                 } else if c == '>' {
@@ -317,11 +362,12 @@ impl Hook for DetectPrivateKey {
 
         for file in files {
             // Read the file
-            let content = fs::read_to_string(file)?;
+            let content = fs::read(file)?;
+            let content_str = String::from_utf8_lossy(&content);
 
             // Check for private key patterns
             for pattern in &patterns {
-                if content.contains(pattern) {
+                if content_str.contains(pattern) {
                     return Err(HookError::Other(format!("Private key found in {}", file.display())));
                 }
             }

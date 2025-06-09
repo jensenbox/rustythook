@@ -8,88 +8,88 @@ jobs:
   build-and-publish:
     name: Build and publish to PyPI
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: stable
         override: true
-    
+
     - name: Build
       run: cargo build --release
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-    
+
     - name: Install Python packaging tools
       run: |
         python -m pip install --upgrade pip
         pip install setuptools wheel twine build
-    
+
     - name: Create Python package structure
       run: |
         VERSION=$(grep '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
-        
+
         # Create Python package directory structure
         mkdir -p python-package/rustyhook
         mkdir -p python-package/rustyhook/bin
-        
+
         # Copy binary
         cp target/release/rh python-package/rustyhook/bin/
-        
+
         # Create __init__.py
         cat > python-package/rustyhook/__init__.py << EOF
         """
         RustyHook: Blazing-fast, Rust-native Git hook runner
         """
-        
+
         __version__ = "$VERSION"
         EOF
-        
+
         # Create __main__.py to make the package runnable
         cat > python-package/rustyhook/__main__.py << EOF
         #!/usr/bin/env python3
         import os
         import sys
         import subprocess
-        
+
         def main():
             # Get the path to the binary
             bin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin")
             binary = os.path.join(bin_dir, "rh")
-            
+
             # Make sure it's executable
             os.chmod(binary, 0o755)
-            
+
             # Run the binary with all arguments
             return subprocess.call([binary] + sys.argv[1:])
-        
+
         if __name__ == "__main__":
             sys.exit(main())
         EOF
-        
+
         # Create setup.py
         cat > python-package/setup.py << EOF
         from setuptools import setup, find_packages
         import os
-        
+
         # Read the version from __init__.py
         with open("rustyhook/__init__.py", "r") as f:
             for line in f:
                 if line.startswith("__version__"):
                     version = line.split("=")[1].strip().strip('"').strip("'")
                     break
-        
+
         # Read the long description from README.md
         with open("README.md", "r") as f:
             long_description = f.read()
-        
+
         setup(
             name="rustyhook",
             version=version,
@@ -124,27 +124,27 @@ jobs:
             python_requires=">=3.7",
         )
         EOF
-        
+
         # Copy README.md
         cp README.md python-package/
-        
+
         # Create MANIFEST.in
         cat > python-package/MANIFEST.in << EOF
         include README.md
         include rustyhook/bin/rh
         EOF
-    
+
     - name: Build Python package
       run: |
         cd python-package
         python -m build
-    
+
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         packages-dir: python-package/dist/
         password: ${{ secrets.PYPI_API_TOKEN }}
-    
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:

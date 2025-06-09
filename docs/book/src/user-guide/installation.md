@@ -64,7 +64,7 @@ If you prefer to build from source:
    ```sh
    # On Unix-like systems
    cp ./target/release/rustyhook /usr/local/bin/
-   
+
    # On Windows, move to a directory in your PATH or add the release directory to your PATH
    ```
 

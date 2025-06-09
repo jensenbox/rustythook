@@ -4,13 +4,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Add version selector if available
     addVersionSelector();
-    
+
     // Add copy buttons to code blocks
     addCopyButtons();
-    
+
     // Add anchor links to headings
     addAnchorLinks();
-    
+
     // Add note/warning/tip classes to blockquotes with specific prefixes
     processBlockquotes();
 });
@@ -22,12 +22,12 @@ function addVersionSelector() {
         { name: 'latest', url: '/rustyhook/' },
         // Add more versions as they become available
     ];
-    
+
     if (versions.length <= 1) return;
-    
+
     const nav = document.querySelector('.nav-chapters');
     if (!nav) return;
-    
+
     const selector = document.createElement('div');
     selector.className = 'version-selector';
     selector.innerHTML = `
@@ -36,9 +36,9 @@ function addVersionSelector() {
             ${versions.map(v => `<option value="${v.url}">${v.name}</option>`).join('')}
         </select>
     `;
-    
+
     nav.parentNode.insertBefore(selector, nav);
-    
+
     document.getElementById('version-select').addEventListener('change', function() {
         window.location.href = this.value;
     });
@@ -47,15 +47,15 @@ function addVersionSelector() {
 // Add copy buttons to code blocks
 function addCopyButtons() {
     const codeBlocks = document.querySelectorAll('pre > code');
-    
+
     codeBlocks.forEach(function(codeBlock) {
         const container = codeBlock.parentNode;
-        
+
         // Create copy button
         const copyButton = document.createElement('button');
         copyButton.className = 'copy-button';
         copyButton.textContent = 'Copy';
-        
+
         // Add copy functionality
         copyButton.addEventListener('click', function() {
             const code = codeBlock.textContent;
@@ -72,7 +72,7 @@ function addCopyButtons() {
                 }, 2000);
             });
         });
-        
+
         // Add button to container
         container.appendChild(copyButton);
     });
@@ -81,7 +81,7 @@ function addCopyButtons() {
 // Add anchor links to headings
 function addAnchorLinks() {
     const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    
+
     headings.forEach(function(heading) {
         if (heading.id) {
             const anchor = document.createElement('a');
@@ -89,7 +89,7 @@ function addAnchorLinks() {
             anchor.href = `#${heading.id}`;
             anchor.innerHTML = '#';
             anchor.title = 'Permalink to this section';
-            
+
             heading.appendChild(anchor);
         }
     });
@@ -98,13 +98,13 @@ function addAnchorLinks() {
 // Process blockquotes to add note/warning/tip classes
 function processBlockquotes() {
     const blockquotes = document.querySelectorAll('blockquote');
-    
+
     blockquotes.forEach(function(blockquote) {
         const firstParagraph = blockquote.querySelector('p:first-child');
         if (!firstParagraph) return;
-        
+
         const text = firstParagraph.textContent;
-        
+
         if (text.startsWith('Note:')) {
             blockquote.className = 'note';
             firstParagraph.innerHTML = firstParagraph.innerHTML.replace('Note:', '<strong>Note:</strong>');

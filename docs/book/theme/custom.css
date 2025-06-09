@@ -112,12 +112,12 @@ blockquote {
     .sidebar, .menu-bar, #sidebar-toggle {
         display: none;
     }
-    
+
     .page {
         margin: 0;
         padding: 0;
     }
-    
+
     pre {
         white-space: pre-wrap;
     }

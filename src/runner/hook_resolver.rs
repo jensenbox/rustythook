@@ -92,19 +92,49 @@ impl HookResolver {
         match hook.language.as_str() {
             "python" => {
                 // Create a Python tool
-                let packages = vec![hook.entry.clone()];
+                // Extract the package name from the entry (first part before space)
+                let package_name = hook.entry.split_whitespace().next().unwrap_or(&hook.entry).to_string();
+
+                // For pre-commit-hooks, we need to install the pre-commit-hooks package
+                let package = if package_name == "pre-commit-hooks" {
+                    "pre-commit-hooks".to_string()
+                } else if package_name == "ruff" {
+                    "ruff".to_string()
+                } else if package_name == "shellcheck" {
+                    "shellcheck-py".to_string()
+                } else if package_name == "codespell" {
+                    "codespell".to_string()
+                } else if package_name == "djhtml" {
+                    "djhtml".to_string()
+                } else {
+                    package_name
+                };
+
+                let packages = vec![package];
                 let tool = PythonTool::new(hook.id.clone(), version, packages);
                 Ok(Box::new(tool))
             },
             "node" | "javascript" | "typescript" => {
                 // Create a Node.js tool
-                let packages = vec![hook.entry.clone()];
+                // Extract the package name from the entry (first part before space)
+                let package_name = hook.entry.split_whitespace().next().unwrap_or(&hook.entry).to_string();
+
+                // For biome, we need to install the @biomejs/biome package
+                let package = if package_name == "biome" {
+                    "@biomejs/biome".to_string()
+                } else {
+                    package_name
+                };
+
+                let packages = vec![package];
                 let tool = NodeTool::new(hook.id.clone(), version, packages, true, None);
                 Ok(Box::new(tool))
             },
             "ruby" => {
                 // Create a Ruby tool
-                let gems = vec![hook.entry.clone()];
+                // Extract the package name from the entry (first part before space)
+                let package_name = hook.entry.split_whitespace().next().unwrap_or(&hook.entry).to_string();
+                let gems = vec![package_name];
                 let tool = RubyTool::new(hook.id.clone(), version, gems);
                 Ok(Box::new(tool))
             },

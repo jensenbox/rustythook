@@ -1,0 +1,218 @@
+default_stages:
+- pre-commit
+fail_fast: false
+parallelism: 0
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  hooks:
+  - id: check-yaml
+    name: check-yaml
+    entry: pre-commit-hooks check-yaml
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v5.0.0
+  - id: check-added-large-files
+    name: check-added-large-files
+    entry: pre-commit-hooks check-added-large-files
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v5.0.0
+  - id: check-json
+    name: check-json
+    entry: pre-commit-hooks check-json
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v5.0.0
+  - id: check-toml
+    name: check-toml
+    entry: pre-commit-hooks check-toml
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v5.0.0
+  - id: name-tests-test
+    name: name-tests-test
+    entry: pre-commit-hooks name-tests-test
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args:
+    - --pytest-test-first
+    env: {}
+    version: v5.0.0
+  - id: pretty-format-json
+    name: pretty-format-json
+    entry: pre-commit-hooks pretty-format-json
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args:
+    - --autofix
+    - --no-sort-keys
+    env: {}
+    version: v5.0.0
+  - id: no-commit-to-branch
+    name: Prevent commit to main branch
+    entry: pre-commit-hooks no-commit-to-branch
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v5.0.0
+  - id: check-shebang-scripts-are-executable
+    name: check-shebang-scripts-are-executable
+    entry: pre-commit-hooks check-shebang-scripts-are-executable
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v5.0.0
+  - id: mixed-line-ending
+    name: mixed-line-ending
+    entry: pre-commit-hooks mixed-line-ending
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v5.0.0
+  - id: detect-aws-credentials
+    name: detect-aws-credentials
+    entry: pre-commit-hooks detect-aws-credentials
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args:
+    - --allow-missing-credentials
+    env: {}
+    version: v5.0.0
+  - id: detect-private-key
+    name: detect-private-key
+    entry: pre-commit-hooks detect-private-key
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v5.0.0
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  hooks:
+  - id: ruff
+    name: ruff
+    entry: ruff ruff
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args:
+    - --fix
+    - --unsafe-fixes
+    env: {}
+    version: v0.8.3
+  - id: ruff-format
+    name: ruff-format
+    entry: ruff ruff-format
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v0.8.3
+- repo: https://github.com/shellcheck-py/shellcheck-py
+  hooks:
+  - id: shellcheck
+    name: shellcheck
+    entry: shellcheck shellcheck
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v0.10.0.1
+- repo: https://github.com/biomejs/pre-commit
+  hooks:
+  - id: biome-check
+    name: biome-check
+    entry: biome biome-check
+    language: node
+    files: ''
+    stages:
+    - pre-commit
+    args:
+    - --changed
+    env: {}
+    version: v0.6.1
+- repo: https://github.com/scop/pre-commit-shfmt
+  hooks:
+  - id: shfmt
+    name: shfmt
+    entry: shfmt shfmt
+    language: system
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v3.10.0-2
+- repo: https://github.com/codespell-project/codespell
+  hooks:
+  - id: codespell
+    name: codespell
+    entry: codespell codespell
+    language: python
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v2.3.0
+- repo: https://github.com/google/yamlfmt
+  hooks:
+  - id: yamlfmt
+    name: yamlfmt
+    entry: yamlfmt yamlfmt
+    language: system
+    files: ''
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: v0.14.0
+- repo: https://github.com/rtts/djhtml
+  hooks:
+  - id: djhtml
+    name: djhtml
+    entry: djhtml djhtml
+    language: python
+    files: .*/templates/.*\.html$
+    stages:
+    - pre-commit
+    args: []
+    env: {}
+    version: 3.0.7

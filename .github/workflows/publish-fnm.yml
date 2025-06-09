@@ -8,41 +8,41 @@ jobs:
   build-and-publish:
     name: Build and publish to fnm
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: stable
         override: true
-    
+
     - name: Build
       run: cargo build --release
-    
+
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
-    
+
     - name: Install fnm
       run: |
         curl -fsSL https://fnm.vercel.app/install | bash
         export PATH="$HOME/.fnm:$PATH"
         eval "`fnm env`"
-    
+
     - name: Prepare fnm package
       run: |
         VERSION=$(grep '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
-        
+
         # Create fnm package directory
         mkdir -p fnm-package/bin
-        
+
         # Copy binary
         cp target/release/rh fnm-package/bin/
-        
+
         # Create package.json for fnm
         cat > fnm-package/package.json << EOF
         {
@@ -73,45 +73,45 @@ jobs:
           "license": "MIT"
         }
         EOF
-        
+
         # Make binary executable
         chmod +x fnm-package/bin/rh
-    
+
     - name: Create fnm installation script
       run: |
         cat > fnm-package/install.sh << 'EOF'
         #!/bin/bash
         set -e
-        
+
         # Get the fnm directory
         FNM_DIR="${FNM_DIR:-$HOME/.fnm}"
-        
+
         # Create the rustyhook directory
         mkdir -p "$FNM_DIR/rustyhook/bin"
-        
+
         # Copy the binary
         cp bin/rh "$FNM_DIR/rustyhook/bin/"
-        
+
         # Create a symlink in the fnm bin directory
         ln -sf "$FNM_DIR/rustyhook/bin/rh" "$FNM_DIR/bin/rh"
-        
+
         echo "RustyHook has been installed. You can now use 'rh' from the command line."
         EOF
-        
+
         chmod +x fnm-package/install.sh
-    
+
     - name: Package for fnm
       run: |
         cd fnm-package
         tar -czf ../rustyhook-fnm.tar.gz .
-    
+
     - name: Upload to GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         files: rustyhook-fnm.tar.gz
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:

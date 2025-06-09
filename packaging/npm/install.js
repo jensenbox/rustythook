@@ -45,7 +45,7 @@ function getPlatform() {
 function getBinary() {
   const { platform, arch, extension, binary } = getPlatform();
   const url = `https://github.com/your-org/rustyhook/releases/download/v${version}/rustyhook-v${version}-${arch}-${platform}${extension === '.exe' ? '.zip' : '.tar.gz'}`;
-  
+
   return new Binary(url, { name: binName, installDirectory: join(__dirname, 'bin') });
 }
 

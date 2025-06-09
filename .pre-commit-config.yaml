@@ -13,19 +13,19 @@ repos:
         description: This hook trims trailing whitespace
         types: [text]
         stages: [commit]
-      
+
       - id: end-of-file-fixer
         name: Fix End of Files
         description: Ensures that a file is either empty, or ends with one newline
         types: [text]
         stages: [commit]
-      
+
       - id: check-yaml
         name: Check YAML
         description: Checks yaml files for parseable syntax
         types: [yaml]
         stages: [commit]
-      
+
       - id: check-added-large-files
         name: Check for added large files
         description: Prevents giant files from being committed
@@ -50,7 +50,7 @@ repos:
         description: Runs rustfmt on all Rust files
         types: [rust]
         stages: [commit]
-      
+
       - id: cargo-check
         name: Rust Check
         description: Checks the code for errors
@@ -79,7 +79,7 @@ repos:
         language: script
         types: [text]
         stages: [commit]
-      
+
       - id: custom-python-script
         name: Custom Python Script
         description: A custom Python script that runs on Python files

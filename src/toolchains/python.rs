@@ -2,9 +2,16 @@
 //!
 //! This module provides functionality for managing Python environments and packages.
 
+use std::fs;
+use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::process::Command;
 use which::which;
+
+use flate2::read::GzDecoder;
+use reqwest::blocking::Client;
+use tar::Archive;
+use zip::ZipArchive;
 
 use super::r#trait::{SetupContext, Tool, ToolError};
 
@@ -52,14 +59,228 @@ impl PythonTool {
             }
         }
 
-        // If Python is not found, return an error
+        // If Python is not found, we'll download it
+        log::info!("Python not found on system, will download and install locally");
         Err(ToolError::ToolNotFound("Python 3.7+ not found".to_string()))
+    }
+
+    /// Get the Python download URL based on the operating system and architecture
+    fn get_python_download_url() -> Result<String, ToolError> {
+        // Default to Python 3.9.13 as it's stable and widely compatible
+        let version = "3.9.13";
+
+        // Determine the OS and architecture
+        let os = std::env::consts::OS;
+        let arch = std::env::consts::ARCH;
+
+        let url = match (os, arch) {
+            ("windows", "x86_64") => format!("https://www.python.org/ftp/python/{}/python-{}-amd64.exe", version, version),
+            ("windows", _) => format!("https://www.python.org/ftp/python/{}/python-{}.exe", version, version),
+            ("macos", _) => format!("https://www.python.org/ftp/python/{}/python-{}-macosx10.9.pkg", version, version),
+            ("linux", "x86_64") => format!("https://www.python.org/ftp/python/{}/Python-{}.tgz", version, version),
+            ("linux", _) => format!("https://www.python.org/ftp/python/{}/Python-{}.tgz", version, version),
+            _ => return Err(ToolError::ExecutionError(format!("Unsupported OS/architecture: {}/{}", os, arch))),
+        };
+
+        Ok(url)
+    }
+
+    /// Download Python from the official website
+    fn download_python(download_dir: &PathBuf) -> Result<PathBuf, ToolError> {
+        // Create the download directory if it doesn't exist
+        fs::create_dir_all(download_dir)?;
+
+        // Get the download URL
+        let url = Self::get_python_download_url()?;
+
+        // Extract the filename from the URL
+        let filename = url.split('/').last().unwrap_or("python.tgz");
+        let download_path = download_dir.join(filename);
+
+        // Skip download if the file already exists
+        if download_path.exists() {
+            log::info!("Python already downloaded at {:?}", download_path);
+            return Ok(download_path);
+        }
+
+        // Download the file
+        log::info!("Downloading Python from {}", url);
+        let client = Client::new();
+        let mut response = client.get(&url)
+            .send()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to download Python: {}", e)))?;
+
+        // Check if the request was successful
+        if !response.status().is_success() {
+            return Err(ToolError::ExecutionError(format!("Failed to download Python: HTTP {}", response.status())));
+        }
+
+        // Create the file
+        let mut file = fs::File::create(&download_path)
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to create file: {}", e)))?;
+
+        // Copy the response body to the file
+        let mut buffer = Vec::new();
+        response.read_to_end(&mut buffer)
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to read response: {}", e)))?;
+        file.write_all(&buffer)
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to write to file: {}", e)))?;
+
+        log::info!("Downloaded Python to {:?}", download_path);
+        Ok(download_path)
+    }
+
+    /// Extract the downloaded Python archive
+    fn extract_python(archive_path: &PathBuf, extract_dir: &PathBuf) -> Result<PathBuf, ToolError> {
+        // Create the extraction directory if it doesn't exist
+        fs::create_dir_all(extract_dir)?;
+
+        // Get the filename to determine the archive type
+        let filename = archive_path.file_name().unwrap().to_string_lossy();
+
+        if filename.ends_with(".tgz") || filename.ends_with(".tar.gz") {
+            // Extract .tgz or .tar.gz archive
+            log::info!("Extracting Python from {:?} to {:?}", archive_path, extract_dir);
+            let file = fs::File::open(archive_path)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to open archive: {}", e)))?;
+            let tar = GzDecoder::new(file);
+            let mut archive = Archive::new(tar);
+            archive.unpack(extract_dir)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to extract archive: {}", e)))?;
+
+            // Find the Python directory (usually Python-x.y.z)
+            let entries = fs::read_dir(extract_dir)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to read directory: {}", e)))?;
+
+            for entry in entries {
+                let entry = entry.map_err(|e| ToolError::ExecutionError(format!("Failed to read directory entry: {}", e)))?;
+                let path = entry.path();
+                if path.is_dir() && path.file_name().unwrap().to_string_lossy().starts_with("Python-") {
+                    log::info!("Found Python directory at {:?}", path);
+                    return Ok(path);
+                }
+            }
+
+            Err(ToolError::ExecutionError("Failed to find Python directory after extraction".to_string()))
+        } else if filename.ends_with(".zip") {
+            // Extract .zip archive
+            log::info!("Extracting Python from {:?} to {:?}", archive_path, extract_dir);
+            let file = fs::File::open(archive_path)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to open archive: {}", e)))?;
+            let mut archive = ZipArchive::new(file)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to read zip archive: {}", e)))?;
+
+            for i in 0..archive.len() {
+                let mut file = archive.by_index(i)
+                    .map_err(|e| ToolError::ExecutionError(format!("Failed to read zip entry: {}", e)))?;
+                let outpath = extract_dir.join(file.name());
+
+                if file.name().ends_with('/') {
+                    fs::create_dir_all(&outpath)
+                        .map_err(|e| ToolError::ExecutionError(format!("Failed to create directory: {}", e)))?;
+                } else {
+                    if let Some(p) = outpath.parent() {
+                        if !p.exists() {
+                            fs::create_dir_all(p)
+                                .map_err(|e| ToolError::ExecutionError(format!("Failed to create directory: {}", e)))?;
+                        }
+                    }
+                    let mut outfile = fs::File::create(&outpath)
+                        .map_err(|e| ToolError::ExecutionError(format!("Failed to create file: {}", e)))?;
+                    io::copy(&mut file, &mut outfile)
+                        .map_err(|e| ToolError::ExecutionError(format!("Failed to write file: {}", e)))?;
+                }
+            }
+
+            Ok(extract_dir.clone())
+        } else {
+            // For Windows .exe and macOS .pkg installers, we can't extract them directly
+            // We would need to run the installer, which is more complex
+            Err(ToolError::ExecutionError(format!("Unsupported archive format: {}", filename)))
+        }
+    }
+
+    /// Build Python from source (for Linux)
+    fn build_python(python_dir: &PathBuf, install_dir: &PathBuf) -> Result<PathBuf, ToolError> {
+        log::info!("Building Python from source at {:?}", python_dir);
+
+        // Configure
+        let status = Command::new("sh")
+            .current_dir(python_dir)
+            .arg("-c")
+            .arg(format!("./configure --prefix={}", install_dir.display()))
+            .status()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to configure Python: {}", e)))?;
+
+        if !status.success() {
+            return Err(ToolError::ExecutionError("Failed to configure Python".to_string()));
+        }
+
+        // Make
+        let status = Command::new("make")
+            .current_dir(python_dir)
+            .status()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to build Python: {}", e)))?;
+
+        if !status.success() {
+            return Err(ToolError::ExecutionError("Failed to build Python".to_string()));
+        }
+
+        // Make install
+        let status = Command::new("make")
+            .current_dir(python_dir)
+            .arg("install")
+            .status()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to install Python: {}", e)))?;
+
+        if !status.success() {
+            return Err(ToolError::ExecutionError("Failed to install Python".to_string()));
+        }
+
+        // Return the path to the Python executable
+        let python_path = if cfg!(windows) {
+            install_dir.join("bin").join("python.exe")
+        } else {
+            install_dir.join("bin").join("python3")
+        };
+
+        if !python_path.exists() {
+            return Err(ToolError::ExecutionError(format!("Python executable not found at {:?}", python_path)));
+        }
+
+        log::info!("Built Python at {:?}", python_path);
+        Ok(python_path)
+    }
+
+    /// Install Python locally
+    fn install_python(ctx: &SetupContext) -> Result<PathBuf, ToolError> {
+        // Create directories
+        let download_dir = ctx.cache_dir.join("downloads");
+        let extract_dir = ctx.cache_dir.join("extracted");
+        let install_dir = ctx.install_dir.join("python");
+
+        // Download Python
+        let archive_path = Self::download_python(&download_dir)?;
+
+        // Extract Python
+        let python_dir = Self::extract_python(&archive_path, &extract_dir)?;
+
+        // Build and install Python (for Linux)
+        let python_path = Self::build_python(&python_dir, &install_dir)?;
+
+        Ok(python_path)
     }
 
     /// Create a virtualenv
     fn create_virtualenv(&self, ctx: &SetupContext) -> Result<(), ToolError> {
-        // Find Python
-        let python = Self::find_python()?;
+        // Try to find Python on the system first
+        let python = match Self::find_python() {
+            Ok(path) => path,
+            Err(_) => {
+                // If Python is not found, download and install it
+                Self::install_python(ctx)?
+            }
+        };
 
         // Create the installation directory if it doesn't exist
         std::fs::create_dir_all(&ctx.install_dir)?;
@@ -141,18 +362,32 @@ impl Tool for PythonTool {
             command.arg(file);
         }
 
-        // Execute the command
-        let status = command
-            .status()
+        // Execute the command with output capture
+        let output = command
+            .output()
             .map_err(|e| ToolError::ExecutionError(format!("Failed to run {}: {}", self.name, e)))?;
 
-        if !status.success() {
-            return Err(ToolError::ExecutionError(
-                format!("{} failed with exit code {:?}", self.name, status.code()),
-            ));
-        }
+        // Check the status
+        if output.status.success() {
+            Ok(())
+        } else {
+            // Try to convert stdout and stderr to strings, but handle non-UTF-8 data
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
 
-        Ok(())
+            // Log the command and its output
+            log::error!("Command failed: {} {}", tool_path.display(), files.iter().map(|f| f.display().to_string()).collect::<Vec<_>>().join(" "));
+            if !stdout.is_empty() {
+                log::error!("Command stdout: {}", stdout);
+            }
+            if !stderr.is_empty() {
+                log::error!("Command stderr: {}", stderr);
+            }
+
+            Err(ToolError::ExecutionError(
+                format!("{} failed with exit code {:?}", self.name, output.status.code()),
+            ))
+        }
     }
 
     fn name(&self) -> &str {
