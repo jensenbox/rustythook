@@ -6,10 +6,12 @@ This directory contains a Dockerfile for setting up a development environment fo
 
 - Pre-installed Rust toolchain
 - Git for version control
-- Python and pip for Python-based hooks
-- Node.js and npm for JavaScript-based hooks
+- Python and pip for Python-based hooks (for development and testing purposes)
+- Node.js and npm for JavaScript-based hooks (for development and testing purposes)
 - Dependency caching for faster builds
 - Volume mounting for seamless code editing
+
+Note: While RustyHook is designed to download and manage Python, Node.js, and other toolchains itself, having them pre-installed in the development environment can be useful for testing hooks that use these languages.
 
 ## Usage
 

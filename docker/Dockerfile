@@ -4,6 +4,9 @@ LABEL maintainer="RustyHook Team"
 LABEL description="Docker image for compiling and developing RustyHook"
 
 # Install additional dependencies
+# Note: Python, Node.js, and npm are included for development and testing purposes
+# RustyHook itself can download and manage these toolchains, but having them pre-installed
+# in the development environment can be useful for testing hooks that use these languages
 RUN apt-get update && apt-get install -y \
     git \
     python3 \
