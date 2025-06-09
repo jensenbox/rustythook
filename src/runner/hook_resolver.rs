@@ -4,11 +4,9 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::Command;
 use std::env;
 
 use crate::config::{Config, Hook};
-use crate::config::parser::HookType;
 use crate::toolchains::{Tool, ToolError, SetupContext, PythonTool, NodeTool, RubyTool, SystemTool};
 use crate::hooks::HookError;
 use super::file_matcher::{FileMatcher, FileMatcherError};
@@ -210,44 +208,6 @@ impl HookResolver {
         Ok(self.tool_cache.get(&tool_key).unwrap())
     }
 
-    /// Run a hook in a separate process
-    fn run_hook_in_separate_process(&self, context: &HookContext) -> Result<(), HookResolverError> {
-        println!("Running hook {} in separate process", context.id);
-
-        // Create a command to run the hook
-        let mut command = Command::new(&context.entry);
-
-        // Add arguments
-        for arg in &context.args {
-            command.arg(arg);
-        }
-
-        // Add files to process
-        for file in &context.files_to_process {
-            command.arg(file);
-        }
-
-        // Set environment variables
-        for (key, value) in &context.env {
-            command.env(key, value);
-        }
-
-        // Set working directory
-        command.current_dir(&context.working_dir);
-
-        // Run the command
-        let output = command.output()?;
-
-        // Check if the command was successful
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(HookResolverError::ProcessError(format!(
-                "Hook {} failed: {}", context.id, stderr
-            )));
-        }
-
-        Ok(())
-    }
 
     /// Run a hook on files
     pub fn run_hook(&mut self, repo_id: &str, hook_id: &str, files: &[PathBuf]) -> Result<(), HookResolverError> {
@@ -265,19 +225,27 @@ impl HookResolver {
             return Ok(());
         }
 
-        // Decide how to run the hook based on the context
-        if context.separate_process || context.hook_type == HookType::External {
-            // Run the hook in a separate process
-            self.run_hook_in_separate_process(&context)
+        // Use the context to decide how to run the hook
+        if context.should_run_in_separate_process() {
+            // Run the hook in a separate process using the context
+            context.run_in_separate_process().map_err(|err| match err {
+                super::hook_context::HookContextError::ProcessError(msg) => HookResolverError::ProcessError(msg),
+                super::hook_context::HookContextError::IoError(err) => HookResolverError::IoError(err),
+                super::hook_context::HookContextError::HookError(err) => HookResolverError::HookError(err),
+                super::hook_context::HookContextError::ToolError(err) => HookResolverError::ToolError(err),
+            })
         } else {
             // Run the hook in the same process using the tool
             // Now we can do the mutable borrow since the immutable borrow is no longer active
             let tool = self.setup_tool(&hook_clone)?;
 
-            // Run the tool on the filtered files
-            tool.run(&context.files_to_process)?;
-
-            Ok(())
+            // Execute the hook using the context
+            context.execute(Some(tool.as_ref())).map_err(|err| match err {
+                super::hook_context::HookContextError::ProcessError(msg) => HookResolverError::ProcessError(msg),
+                super::hook_context::HookContextError::IoError(err) => HookResolverError::IoError(err),
+                super::hook_context::HookContextError::HookError(err) => HookResolverError::HookError(err),
+                super::hook_context::HookContextError::ToolError(err) => HookResolverError::ToolError(err),
+            })
         }
     }
 

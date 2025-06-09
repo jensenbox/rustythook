@@ -4,7 +4,40 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::Command;
 use crate::config::parser::HookType;
+use crate::hooks::HookError;
+
+/// Error type for hook context operations
+#[derive(Debug)]
+pub enum HookContextError {
+    /// Error running process
+    ProcessError(String),
+    /// IO error
+    IoError(std::io::Error),
+    /// Hook error
+    HookError(HookError),
+    /// Tool error
+    ToolError(crate::toolchains::ToolError),
+}
+
+impl From<std::io::Error> for HookContextError {
+    fn from(err: std::io::Error) -> Self {
+        HookContextError::IoError(err)
+    }
+}
+
+impl From<HookError> for HookContextError {
+    fn from(err: HookError) -> Self {
+        HookContextError::HookError(err)
+    }
+}
+
+impl From<crate::toolchains::ToolError> for HookContextError {
+    fn from(err: crate::toolchains::ToolError) -> Self {
+        HookContextError::ToolError(err)
+    }
+}
 
 /// Represents the context for running a hook
 #[derive(Debug, Clone)]
@@ -103,6 +136,73 @@ impl HookContext {
             separate_process: hook.separate_process,
             working_dir,
             files_to_process,
+        }
+    }
+
+    /// Determine if the hook should be run in a separate process
+    pub fn should_run_in_separate_process(&self) -> bool {
+        self.separate_process || self.hook_type == HookType::External
+    }
+
+    /// Run the hook in a separate process
+    pub fn run_in_separate_process(&self) -> Result<(), HookContextError> {
+        println!("Running hook {} in separate process", self.id);
+
+        // Create a command to run the hook
+        let mut command = Command::new(&self.entry);
+
+        // Add arguments
+        for arg in &self.args {
+            command.arg(arg);
+        }
+
+        // Add files to process
+        for file in &self.files_to_process {
+            command.arg(file);
+        }
+
+        // Set environment variables
+        for (key, value) in &self.env {
+            command.env(key, value);
+        }
+
+        // Set working directory
+        command.current_dir(&self.working_dir);
+
+        // Run the command
+        let output = command.output()?;
+
+        // Check if the command was successful
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(HookContextError::ProcessError(format!(
+                "Hook {} failed: {}", self.id, stderr
+            )));
+        }
+
+        Ok(())
+    }
+
+    /// Execute the hook using the appropriate method
+    pub fn execute(&self, tool: Option<&dyn crate::toolchains::Tool>) -> Result<(), HookContextError> {
+        // If there are no files to process, we're done
+        if self.files_to_process.is_empty() {
+            return Ok(());
+        }
+
+        // Decide how to run the hook based on the context
+        if self.should_run_in_separate_process() {
+            // Run the hook in a separate process
+            self.run_in_separate_process()
+        } else {
+            // Run the hook in the same process using the tool
+            if let Some(tool) = tool {
+                tool.run(&self.files_to_process).map_err(HookContextError::ToolError)
+            } else {
+                Err(HookContextError::ProcessError(format!(
+                    "No tool provided for hook {}", self.id
+                )))
+            }
         }
     }
 }
