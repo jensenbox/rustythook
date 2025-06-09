@@ -171,7 +171,7 @@ impl NodeTool {
 
         // Construct download URL
         let download_url = format!(
-            "https://nodejs.org/dist/v{}/node-v{}-{}.{}", 
+            "https://nodejs.org/dist/v{}/node-v{}-{}.{}",
             version, version, platform, file_ext
         );
 
@@ -200,7 +200,7 @@ impl NodeTool {
             // For Windows, use PowerShell to extract zip
             let extract_output = Command::new("powershell")
                 .arg("-Command")
-                .arg(format!("Expand-Archive -Path \"{}\" -DestinationPath \"{}\" -Force", 
+                .arg(format!("Expand-Archive -Path \"{}\" -DestinationPath \"{}\" -Force",
                     archive_path.display(), node_dir.display()))
                 .output()
                 .map_err(|e| ToolError::ExecutionError(format!("Failed to extract Node.js: {}", e)))?;
@@ -230,7 +230,7 @@ impl NodeTool {
 
         if !node_binary.exists() {
             return Err(ToolError::ExecutionError(format!(
-                "Node.js binary not found at expected path: {}", 
+                "Node.js binary not found at expected path: {}",
                 node_binary.display()
             )));
         }
