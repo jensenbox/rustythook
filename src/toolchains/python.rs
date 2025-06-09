@@ -12,6 +12,7 @@ use flate2::read::GzDecoder;
 use reqwest::blocking::Client;
 use tar::Archive;
 use zip::ZipArchive;
+use zstd::stream::Decoder as ZstdDecoder;
 
 use super::r#trait::{SetupContext, Tool, ToolError};
 
@@ -65,20 +66,31 @@ impl PythonTool {
     }
 
     /// Get the Python download URL based on the operating system and architecture
+    /// Uses python-build-standalone from Gregory Szorc's project
     fn get_python_download_url() -> Result<String, ToolError> {
-        // Default to Python 3.9.13 as it's stable and widely compatible
-        let version = "3.9.13";
+        // Default to Python 3.9.18 as it's stable and widely compatible
+        let version = "3.9.18";
+
+        // python-build-standalone version
+        let pbs_version = "20240224";
 
         // Determine the OS and architecture
         let os = std::env::consts::OS;
         let arch = std::env::consts::ARCH;
 
         let url = match (os, arch) {
-            ("windows", "x86_64") => format!("https://www.python.org/ftp/python/{}/python-{}-amd64.exe", version, version),
-            ("windows", _) => format!("https://www.python.org/ftp/python/{}/python-{}.exe", version, version),
-            ("macos", _) => format!("https://www.python.org/ftp/python/{}/python-{}-macosx10.9.pkg", version, version),
-            ("linux", "x86_64") => format!("https://www.python.org/ftp/python/{}/Python-{}.tgz", version, version),
-            ("linux", _) => format!("https://www.python.org/ftp/python/{}/Python-{}.tgz", version, version),
+            ("windows", "x86_64") => format!("https://github.com/indygreg/python-build-standalone/releases/download/{}/cpython-{}-{}-windows-amd64-shared-pgo.tar.zst", 
+                pbs_version, version, pbs_version),
+            ("windows", "aarch64") => format!("https://github.com/indygreg/python-build-standalone/releases/download/{}/cpython-{}-{}-windows-arm64-shared-pgo.tar.zst", 
+                pbs_version, version, pbs_version),
+            ("macos", "x86_64") => format!("https://github.com/indygreg/python-build-standalone/releases/download/{}/cpython-{}-{}-macos-x86_64-shared-install_only.tar.zst", 
+                pbs_version, version, pbs_version),
+            ("macos", "aarch64") => format!("https://github.com/indygreg/python-build-standalone/releases/download/{}/cpython-{}-{}-macos-arm64-shared-install_only.tar.zst", 
+                pbs_version, version, pbs_version),
+            ("linux", "x86_64") => format!("https://github.com/indygreg/python-build-standalone/releases/download/{}/cpython-{}-{}-linux-x86_64-shared-install_only.tar.zst", 
+                pbs_version, version, pbs_version),
+            ("linux", "aarch64") => format!("https://github.com/indygreg/python-build-standalone/releases/download/{}/cpython-{}-{}-linux-aarch64-shared-install_only.tar.zst", 
+                pbs_version, version, pbs_version),
             _ => return Err(ToolError::ExecutionError(format!("Unsupported OS/architecture: {}/{}", os, arch))),
         };
 
@@ -158,6 +170,42 @@ impl PythonTool {
                 if path.is_dir() && path.file_name().unwrap().to_string_lossy().starts_with("Python-") {
                     log::info!("Found Python directory at {:?}", path);
                     return Ok(path);
+                }
+            }
+
+            Err(ToolError::ExecutionError("Failed to find Python directory after extraction".to_string()))
+        } else if filename.ends_with(".tar.zst") {
+            // Extract .tar.zst archive (used by python-build-standalone)
+            log::info!("Extracting Python from {:?} to {:?}", archive_path, extract_dir);
+            let file = fs::File::open(archive_path)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to open archive: {}", e)))?;
+            let zstd = ZstdDecoder::new(file)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to create zstd decoder: {}", e)))?;
+            let mut archive = Archive::new(zstd);
+            archive.unpack(extract_dir)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to extract archive: {}", e)))?;
+
+            // python-build-standalone has a different structure
+            // The Python executable is in the 'python/bin' directory
+            let python_dir = extract_dir.join("python");
+            if python_dir.exists() {
+                log::info!("Found Python directory at {:?}", python_dir);
+                return Ok(python_dir);
+            }
+
+            // If not found directly, look for it in subdirectories
+            let entries = fs::read_dir(extract_dir)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to read directory: {}", e)))?;
+
+            for entry in entries {
+                let entry = entry.map_err(|e| ToolError::ExecutionError(format!("Failed to read directory entry: {}", e)))?;
+                let path = entry.path();
+                if path.is_dir() {
+                    let python_subdir = path.join("python");
+                    if python_subdir.exists() && python_subdir.is_dir() {
+                        log::info!("Found Python directory at {:?}", python_subdir);
+                        return Ok(python_subdir);
+                    }
                 }
             }
 
@@ -265,8 +313,73 @@ impl PythonTool {
         // Extract Python
         let python_dir = Self::extract_python(&archive_path, &extract_dir)?;
 
-        // Build and install Python (for Linux)
-        let python_path = Self::build_python(&python_dir, &install_dir)?;
+        // Get the filename to determine if we're using python-build-standalone
+        let filename = archive_path.file_name().unwrap().to_string_lossy();
+
+        let python_path = if filename.ends_with(".tar.zst") {
+            // For python-build-standalone, we don't need to build from source
+            // The Python executable is already in the bin directory
+            let bin_dir = python_dir.join("bin");
+            let python_exe = if cfg!(windows) {
+                bin_dir.join("python.exe")
+            } else {
+                bin_dir.join("python3")
+            };
+
+            if !python_exe.exists() {
+                return Err(ToolError::ExecutionError(
+                    format!("Python executable not found at {:?}", python_exe)
+                ));
+            }
+
+            // Copy the extracted Python to the install directory
+            if install_dir.exists() {
+                fs::remove_dir_all(&install_dir)
+                    .map_err(|e| ToolError::ExecutionError(format!("Failed to remove existing install directory: {}", e)))?;
+            }
+
+            fs::create_dir_all(&install_dir)
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to create install directory: {}", e)))?;
+
+            // Use a platform-specific copy method
+            if cfg!(windows) {
+                // On Windows, use xcopy
+                let status = Command::new("xcopy")
+                    .arg("/E")
+                    .arg("/I")
+                    .arg("/Y")
+                    .arg(python_dir.to_str().unwrap())
+                    .arg(install_dir.to_str().unwrap())
+                    .status()
+                    .map_err(|e| ToolError::ExecutionError(format!("Failed to copy Python: {}", e)))?;
+
+                if !status.success() {
+                    return Err(ToolError::ExecutionError("Failed to copy Python".to_string()));
+                }
+            } else {
+                // On Unix-like systems, use cp
+                let status = Command::new("cp")
+                    .arg("-R")
+                    .arg(python_dir.to_str().unwrap())
+                    .arg(install_dir.to_str().unwrap())
+                    .status()
+                    .map_err(|e| ToolError::ExecutionError(format!("Failed to copy Python: {}", e)))?;
+
+                if !status.success() {
+                    return Err(ToolError::ExecutionError("Failed to copy Python".to_string()));
+                }
+            }
+
+            // Return the path to the Python executable in the install directory
+            if cfg!(windows) {
+                install_dir.join("bin").join("python.exe")
+            } else {
+                install_dir.join("bin").join("python3")
+            }
+        } else {
+            // For traditional Python source, build from source
+            Self::build_python(&python_dir, &install_dir)?
+        };
 
         Ok(python_path)
     }
