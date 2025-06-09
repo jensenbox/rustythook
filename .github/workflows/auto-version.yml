@@ -1,0 +1,88 @@
+name: Auto Version
+
+# This workflow automatically bumps the version of the project based on commit messages and PR titles
+# It follows the Semantic Versioning specification (https://semver.org/)
+# - feat: Minor version bump (0.1.0 -> 0.2.0)
+# - fix: Patch version bump (0.1.0 -> 0.1.1)
+# - BREAKING CHANGE or feat!: Major version bump (0.1.0 -> 1.0.0)
+#
+# The workflow is triggered when a PR is merged into the main branch.
+# It analyzes the commit messages and PR title to determine the appropriate version bump,
+# updates the version in Cargo.toml, generates release notes, and creates a new tag.
+# The tag creation triggers the release workflow, which builds and publishes the release.
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  auto-version:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-edit
+        run: cargo install cargo-edit
+
+      - name: Install semantic-release and plugins
+        run: |
+          npm install -g semantic-release
+          npm install -g @semantic-release/git
+          npm install -g @semantic-release/changelog
+          npm install -g @semantic-release/exec
+
+      - name: Create .releaserc.json
+        run: |
+          cat > .releaserc.json << 'EOF'
+          {
+            "branches": ["main"],
+            "plugins": [
+              "@semantic-release/commit-analyzer",
+              "@semantic-release/release-notes-generator",
+              "@semantic-release/changelog",
+              ["@semantic-release/exec", {
+                "prepareCmd": "cargo set-version ${nextRelease.version} && sed -i 's/version = \"[0-9]\\+\\.[0-9]\\+\\.[0-9]\\+\"/version = \"${nextRelease.version}\"/g' Cargo.toml"
+              }],
+              ["@semantic-release/git", {
+                "assets": ["Cargo.toml", "Cargo.lock", "CHANGELOG.md"],
+                "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+              }]
+            ]
+          }
+          EOF
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release
+
+      - name: Get new version
+        id: get_version
+        run: |
+          VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        if: steps.get_version.outputs.version != ''
+        run: |
+          git tag -a v${{ steps.get_version.outputs.version }} -m "Release v${{ steps.get_version.outputs.version }}"
+          git push origin v${{ steps.get_version.outputs.version }}
