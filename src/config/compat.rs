@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::parser::{Config, Hook, Repo, ConfigError};
+use super::parser::{Config, Hook, Repo, ConfigError, HookType};
 
 /// Represents a pre-commit configuration
 #[derive(Debug, Serialize, Deserialize)]
@@ -223,6 +223,8 @@ pub fn convert_to_rustyhook_config(precommit_config: &PreCommitConfig) -> Config
                 args: precommit_hook.args.clone().unwrap_or_default(),
                 env: precommit_hook.env.clone().unwrap_or_default(),
                 version: Some(precommit_repo.rev.clone()),
+                hook_type: HookType::External,
+                separate_process: false,
             };
 
             hooks.push(hook);

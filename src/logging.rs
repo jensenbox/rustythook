@@ -109,8 +109,8 @@ pub fn init(log_file: Option<PathBuf>, log_level: Option<&str>) -> Result<(), St
     let mut builder = Builder::new();
 
     // Apply module-specific log levels if provided
-    if let Some(filter) = module_filter {
-        builder.parse_filters(&filter);
+    if let Some(ref filter) = module_filter {
+        builder.parse_filters(filter);
     } else {
         // Otherwise, apply the global log level
         builder.filter_level(level_filter);

@@ -4,11 +4,15 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::Command;
+use std::env;
 
 use crate::config::{Config, Hook};
+use crate::config::parser::HookType;
 use crate::toolchains::{Tool, ToolError, SetupContext, PythonTool, NodeTool, RubyTool, SystemTool};
 use crate::hooks::HookError;
 use super::file_matcher::{FileMatcher, FileMatcherError};
+use super::hook_context::HookContext;
 
 /// Error type for hook resolver operations
 #[derive(Debug)]
@@ -23,6 +27,10 @@ pub enum HookResolverError {
     HookNotFound(String),
     /// Unsupported language
     UnsupportedLanguage(String),
+    /// Error running process
+    ProcessError(String),
+    /// IO error
+    IoError(std::io::Error),
 }
 
 impl From<FileMatcherError> for HookResolverError {
@@ -40,6 +48,12 @@ impl From<ToolError> for HookResolverError {
 impl From<HookError> for HookResolverError {
     fn from(err: HookError) -> Self {
         HookResolverError::HookError(err)
+    }
+}
+
+impl From<std::io::Error> for HookResolverError {
+    fn from(err: std::io::Error) -> Self {
+        HookResolverError::IoError(err)
     }
 }
 
@@ -66,6 +80,25 @@ impl HookResolver {
     /// Get the configuration
     pub fn config(&self) -> &Config {
         &self.config
+    }
+
+    /// Create a hook context from a hook
+    fn create_context(&self, hook: &Hook, files: &[PathBuf]) -> Result<HookContext, HookResolverError> {
+        // Get the current working directory
+        let working_dir = env::current_dir()?;
+
+        // Create a file matcher if the hook has a file pattern
+        let filtered_files = if !hook.files.is_empty() {
+            let matcher = FileMatcher::from_regex(&hook.files)?;
+            matcher.filter_files(files)
+        } else {
+            files.to_vec()
+        };
+
+        // Create the context
+        let context = HookContext::from_hook(hook, working_dir, filtered_files);
+
+        Ok(context)
     }
 
     /// Resolve a hook by ID
@@ -177,6 +210,45 @@ impl HookResolver {
         Ok(self.tool_cache.get(&tool_key).unwrap())
     }
 
+    /// Run a hook in a separate process
+    fn run_hook_in_separate_process(&self, context: &HookContext) -> Result<(), HookResolverError> {
+        println!("Running hook {} in separate process", context.id);
+
+        // Create a command to run the hook
+        let mut command = Command::new(&context.entry);
+
+        // Add arguments
+        for arg in &context.args {
+            command.arg(arg);
+        }
+
+        // Add files to process
+        for file in &context.files_to_process {
+            command.arg(file);
+        }
+
+        // Set environment variables
+        for (key, value) in &context.env {
+            command.env(key, value);
+        }
+
+        // Set working directory
+        command.current_dir(&context.working_dir);
+
+        // Run the command
+        let output = command.output()?;
+
+        // Check if the command was successful
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(HookResolverError::ProcessError(format!(
+                "Hook {} failed: {}", context.id, stderr
+            )));
+        }
+
+        Ok(())
+    }
+
     /// Run a hook on files
     pub fn run_hook(&mut self, repo_id: &str, hook_id: &str, files: &[PathBuf]) -> Result<(), HookResolverError> {
         // First, get all the information we need from immutable borrows
@@ -185,26 +257,28 @@ impl HookResolver {
             hook.clone()
         };
 
-        // Create a file matcher if the hook has a file pattern
-        let filtered_files = if !hook_clone.files.is_empty() {
-            let matcher = FileMatcher::from_regex(&hook_clone.files)?;
-            matcher.filter_files(files)
-        } else {
-            files.to_vec()
-        };
+        // Create the context for running the hook
+        let context = self.create_context(&hook_clone, files)?;
 
         // If there are no files to process, we're done
-        if filtered_files.is_empty() {
+        if context.files_to_process.is_empty() {
             return Ok(());
         }
 
-        // Now we can do the mutable borrow since the immutable borrow is no longer active
-        let tool = self.setup_tool(&hook_clone)?;
+        // Decide how to run the hook based on the context
+        if context.separate_process || context.hook_type == HookType::External {
+            // Run the hook in a separate process
+            self.run_hook_in_separate_process(&context)
+        } else {
+            // Run the hook in the same process using the tool
+            // Now we can do the mutable borrow since the immutable borrow is no longer active
+            let tool = self.setup_tool(&hook_clone)?;
 
-        // Run the tool on the filtered files
-        tool.run(&filtered_files)?;
+            // Run the tool on the filtered files
+            tool.run(&context.files_to_process)?;
 
-        Ok(())
+            Ok(())
+        }
     }
 
     /// Run all hooks on files

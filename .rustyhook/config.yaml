@@ -18,6 +18,8 @@ repos:
         files: ".*"
         types: [text]
         stages: [commit]
+        hook_type: built-in
+        separate_process: false
 
       - id: end-of-file-fixer
         name: Fix End of Files
@@ -27,6 +29,8 @@ repos:
         files: ".*"
         types: [text]
         stages: [commit]
+        hook_type: built-in
+        separate_process: false
 
       - id: check-yaml
         name: Check YAML
@@ -36,6 +40,8 @@ repos:
         files: ".*\\.ya?ml$"
         types: [yaml]
         stages: [commit]
+        hook_type: built-in
+        separate_process: false
 
       - id: check-added-large-files
         name: Check for added large files
@@ -44,6 +50,8 @@ repos:
         entry: "./target/debug/rustyhook-hooks check-added-large-files --maxkb=500"
         files: ".*"
         stages: [commit]
+        hook_type: built-in
+        separate_process: false
 
       # Rust-specific hooks
       - id: rustfmt
@@ -54,6 +62,8 @@ repos:
         files: ".*\\.rs$"
         types: [rust]
         stages: [commit]
+        hook_type: external
+        separate_process: true
 
       - id: cargo-check
         name: Rust Check
@@ -63,6 +73,8 @@ repos:
         files: ".*\\.rs$"
         types: [rust]
         stages: [commit]
+        hook_type: external
+        separate_process: true
 
       - id: cargo-clippy
         name: Rust Clippy
@@ -72,3 +84,5 @@ repos:
         files: ".*\\.rs$"
         types: [rust]
         stages: [commit]
+        hook_type: external
+        separate_process: true
