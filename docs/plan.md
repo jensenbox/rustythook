@@ -21,8 +21,8 @@ Tasks:
 - [x] Re-evaluate the use of python and other languages in the docker file as they are likely not needed
 - [x] Use a mechanism to create and deploy semver compatible releases. Perhaps use cargo-release or some other mechanism to automatically generate release notes and create a tag - trigger a release on tag creation.
 - [x] Use a github action or something that will automatically bump the next version using heuristics of the commit messages and PRs - like labelling and titles containing things like "fix" or "feat" but using industry standard conventions. At this phase, we can release a new version every time a PR is merged in. The release notes can use a popular release notes generator from the PRs since last release.
-- [ ] Remove the dependency on a base interpreter for python, node and ruby by downloading the required interpreters from the internet and installing locally. Make sure to abide by the correct versions in the .python-version and similar files. As this is for a monorepo you will need to ensure the use per sub-directory.
-- [ ] Use the instructions found at docs/ruby.md to replace the current process of installing Ruby. Pay special attention to all the tasks and requirements.
+- [x] Remove the dependency on a base interpreter for python, node and ruby by downloading the required interpreters from the internet and installing locally. Make sure to abide by the correct versions in the .python-version and similar files. As this is for a monorepo you will need to ensure the use per sub-directory.
+- [x] Use the instructions found at docs/ruby.md to replace the current process of installing Ruby. Pay special attention to all the tasks and requirements.
 - [ ] Take the best ideas from the pre-commit and lefthook projects and integrate them into rustyhook.
 - [ ] ensure all tasks can operate in parallel
 - [ ] implement an "explain" command that can be used to explain the current configuration and any errors that may have occurred.
