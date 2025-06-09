@@ -2,12 +2,21 @@
 
 use rustyhook::toolchains::{NodeTool, Tool, SetupContext};
 use std::path::PathBuf;
+use std::env;
 
 #[test]
-fn test_node_tool_with_fnm() {
+fn test_node_tool_with_direct_download() {
     // Create a temporary directory for the test
     let temp_dir = tempfile::tempdir().unwrap();
     let cache_dir = temp_dir.path().join(".rustyhook").join("cache");
+
+    // Create a runtime directory for Node.js
+    let runtime_dir = temp_dir.path().join(".runtime");
+    std::fs::create_dir_all(&runtime_dir).unwrap();
+
+    // Set the current directory to the temp directory for the test
+    let original_dir = env::current_dir().unwrap();
+    env::set_current_dir(temp_dir.path()).unwrap();
 
     // Create a Node.js tool with a test package
     let node_tool = NodeTool::new("eslint", "1.0.0", vec!["eslint".to_string()], true, None);
@@ -26,8 +35,8 @@ fn test_node_tool_with_fnm() {
         version: Some("lts".to_string()), // Use LTS version of Node.js
     };
 
-    // Set up the Node tool (this will install fnm and use it to install Node.js LTS)
-    println!("Setting up Node tool with fnm...");
+    // Set up the Node tool (this will download and install Node.js LTS)
+    println!("Setting up Node tool with direct download...");
     let result = node_tool.setup(&ctx);
 
     // Check that the setup was successful
@@ -89,4 +98,12 @@ fn test_node_tool_with_fnm() {
 
     // Assert that the eslint package is installed
     assert!(tool_path.exists(), "eslint package is not installed");
+
+    // Check that the Node.js runtime was installed
+    let node_runtime_dir = PathBuf::from(".runtime").join("node");
+    println!("Node.js runtime directory: {:?}", node_runtime_dir);
+    assert!(node_runtime_dir.exists(), "Node.js runtime directory does not exist");
+
+    // Reset the current directory
+    env::set_current_dir(original_dir).unwrap();
 }

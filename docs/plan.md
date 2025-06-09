@@ -17,7 +17,7 @@ Tasks:
 - [x] Have uv use the downloaded python interpreter that is specified in the .python-version file. use uv for package installation. We will likely be able to remove a substantial amount of the code we have in our source code for installing python interpreters and installing packages.
 - [x] Break up the implementations of the hooks into separate files and create a test suite for each file.
 - [x] create tests for each hook and complete coverage
-- [ ] Use the instructions found at docs/node.md to replace the current process of using FNM. Pay special attention to all the tasks and requirements.
+- [x] Use the instructions found at docs/node.md to replace the current process of using FNM. Pay special attention to all the tasks and requirements.
 - [ ] Re-evaluate the use of python and other languages in the docker file as they are likely not needed
 - [ ] Use a mechanism to create and deploy semver compatible releases. Perhaps use cargo-release or some other mechanism to automatically generate release notes and create a tag - trigger a release on tag creation.
 - [ ] Remove the dependency on a base interpreter for python, node and ruby by downloading the required interpreters from the internet and installing locally. Make sure to abide by the correct versions in the .python-version and similar files. As this is for a monorepo you will need to ensure the use per sub-directory.

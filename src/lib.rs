@@ -385,48 +385,47 @@ fn diagnose_issues() {
         },
     }
 
-    // Check if fnm (Fast Node Manager) is installed
-    match which::which("fnm") {
-        Ok(path) => {
-            info!("fnm is installed at: {}", path.display());
-            debug!("fnm found at path: {}", path.display());
+    // Check for Node.js installation
+    let runtime_dir = std::env::current_dir().unwrap().join(".runtime").join("node");
+    if runtime_dir.exists() {
+        info!("Node.js runtime directory exists at: {}", runtime_dir.display());
+        debug!("Node.js runtime directory found at path: {}", runtime_dir.display());
 
-            // Check if Node.js is installed via fnm
-            let output = std::process::Command::new("fnm")
-                .arg("list")
-                .output();
-
-            match output {
-                Ok(output) if output.status.success() => {
-                    let versions = String::from_utf8_lossy(&output.stdout);
-                    if !versions.trim().is_empty() {
-                        info!("Node.js is installed via fnm. Available versions: {}", versions.trim());
-                    } else {
-                        warn!("No Node.js versions installed via fnm. Some hooks may not work.");
-                        debug!("fnm list returned empty result");
+        // Check for installed Node.js versions
+        if let Ok(entries) = std::fs::read_dir(&runtime_dir) {
+            let mut versions = Vec::new();
+            for entry in entries.filter_map(Result::ok) {
+                if entry.path().is_dir() {
+                    if let Some(version) = entry.file_name().to_str() {
+                        versions.push(version.to_string());
                     }
-                },
-                _ => {
-                    warn!("Failed to check Node.js versions via fnm. Some hooks may not work.");
-                    debug!("Failed to execute fnm list");
                 }
             }
-        },
-        Err(_) => {
-            // If fnm is not installed, check for Node.js directly
-            match which::which("node") {
-                Ok(path) => {
-                    info!("Node.js is installed at: {}", path.display());
-                    debug!("Node.js found at path: {}", path.display());
-                    info!("Consider installing fnm for better Node.js version management.");
-                },
-                Err(_) => {
-                    warn!("Neither fnm nor Node.js is installed. Some hooks may not work.");
-                    debug!("Failed to find fnm or Node.js in PATH");
-                    info!("RustyHook will attempt to install fnm and Node.js when needed.");
-                },
+
+            if !versions.is_empty() {
+                info!("Node.js is installed. Available versions: {}", versions.join(", "));
+            } else {
+                warn!("No Node.js versions found in runtime directory. Some hooks may not work.");
+                debug!("No subdirectories found in Node.js runtime directory");
             }
-        },
+        } else {
+            warn!("Failed to read Node.js runtime directory. Some hooks may not work.");
+            debug!("Failed to read Node.js runtime directory");
+        }
+    } else {
+        // If runtime directory doesn't exist, check for Node.js directly
+        match which::which("node") {
+            Ok(path) => {
+                info!("System Node.js is installed at: {}", path.display());
+                debug!("System Node.js found at path: {}", path.display());
+                info!("RustyHook will download and use its own Node.js runtime when needed.");
+            },
+            Err(_) => {
+                warn!("Node.js is not installed. Some hooks may not work.");
+                debug!("Failed to find Node.js in PATH");
+                info!("RustyHook will download and install Node.js when needed.");
+            },
+        }
     }
 
     // Check if Ruby is installed
