@@ -14,6 +14,7 @@ use clap_complete::{generate, Shell as ClapShell};
 use std::io;
 use std::path::PathBuf;
 use log::{debug, info, warn, error};
+use tokio;
 
 /// Supported shells for completion script generation
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -238,18 +239,22 @@ fn run_hooks_with_native_config() {
             });
             debug!("Using cache directory: {}", cache_dir.display());
 
-            // Create a hook resolver
-            let mut resolver = runner::HookResolver::new(config, cache_dir);
-            debug!("Hook resolver created");
+            // Create a parallel executor
+            let executor = runner::ParallelExecutor::new(config, cache_dir);
+            debug!("Parallel executor created");
+
+            // Create a tokio runtime for async execution
+            let rt = tokio::runtime::Runtime::new().unwrap();
 
             // Set hooks to skip if specified
+            let mut hooks_to_skip = Vec::new();
             if let Some(skip) = &cli.skip {
-                let hooks_to_skip: Vec<String> = skip.split(',')
+                let cli_hooks_to_skip: Vec<String> = skip.split(',')
                     .map(|s| s.trim().to_string())
                     .collect();
-                if !hooks_to_skip.is_empty() {
-                    debug!("Skipping hooks: {}", hooks_to_skip.join(", "));
-                    resolver.set_hooks_to_skip(hooks_to_skip);
+                if !cli_hooks_to_skip.is_empty() {
+                    debug!("Skipping hooks from CLI: {}", cli_hooks_to_skip.join(", "));
+                    hooks_to_skip.extend(cli_hooks_to_skip);
                 }
             }
 
@@ -261,12 +266,15 @@ fn run_hooks_with_native_config() {
                         .collect();
                     if !env_hooks_to_skip.is_empty() {
                         debug!("Skipping hooks from environment: {}", env_hooks_to_skip.join(", "));
-                        // Merge with any hooks already set to skip
-                        let mut all_hooks_to_skip = resolver.hooks_to_skip().clone();
-                        all_hooks_to_skip.extend(env_hooks_to_skip);
-                        resolver.set_hooks_to_skip(all_hooks_to_skip);
+                        hooks_to_skip.extend(env_hooks_to_skip);
                     }
                 }
+            }
+
+            // Set hooks to skip on the executor
+            if !hooks_to_skip.is_empty() {
+                debug!("Skipping hooks: {}", hooks_to_skip.join(", "));
+                rt.block_on(executor.set_hooks_to_skip(hooks_to_skip));
             }
 
             // Get the list of files to check
@@ -274,8 +282,8 @@ fn run_hooks_with_native_config() {
             let files = get_files_to_check();
             debug!("Found {} files to check", files.len());
 
-            // Run all hooks
-            match resolver.run_all_hooks(&files) {
+            // Run all hooks in parallel
+            match rt.block_on(executor.run_all_hooks(files)) {
                 Ok(_) => info!("All hooks passed!"),
                 Err(e) => {
                     error!("Error running hooks: {:?}", e);
@@ -317,18 +325,22 @@ fn run_hooks_with_compat_config() {
             });
             debug!("Using cache directory: {}", cache_dir.display());
 
-            // Create a hook resolver
-            let mut resolver = runner::HookResolver::new(config, cache_dir);
-            debug!("Hook resolver created");
+            // Create a parallel executor
+            let executor = runner::ParallelExecutor::new(config, cache_dir);
+            debug!("Parallel executor created");
+
+            // Create a tokio runtime for async execution
+            let rt = tokio::runtime::Runtime::new().unwrap();
 
             // Set hooks to skip if specified
+            let mut hooks_to_skip = Vec::new();
             if let Some(skip) = &cli.skip {
-                let hooks_to_skip: Vec<String> = skip.split(',')
+                let cli_hooks_to_skip: Vec<String> = skip.split(',')
                     .map(|s| s.trim().to_string())
                     .collect();
-                if !hooks_to_skip.is_empty() {
-                    debug!("Skipping hooks: {}", hooks_to_skip.join(", "));
-                    resolver.set_hooks_to_skip(hooks_to_skip);
+                if !cli_hooks_to_skip.is_empty() {
+                    debug!("Skipping hooks from CLI: {}", cli_hooks_to_skip.join(", "));
+                    hooks_to_skip.extend(cli_hooks_to_skip);
                 }
             }
 
@@ -340,12 +352,15 @@ fn run_hooks_with_compat_config() {
                         .collect();
                     if !env_hooks_to_skip.is_empty() {
                         debug!("Skipping hooks from environment: {}", env_hooks_to_skip.join(", "));
-                        // Merge with any hooks already set to skip
-                        let mut all_hooks_to_skip = resolver.hooks_to_skip().clone();
-                        all_hooks_to_skip.extend(env_hooks_to_skip);
-                        resolver.set_hooks_to_skip(all_hooks_to_skip);
+                        hooks_to_skip.extend(env_hooks_to_skip);
                     }
                 }
+            }
+
+            // Set hooks to skip on the executor
+            if !hooks_to_skip.is_empty() {
+                debug!("Skipping hooks: {}", hooks_to_skip.join(", "));
+                rt.block_on(executor.set_hooks_to_skip(hooks_to_skip));
             }
 
             // Get the list of files to check
@@ -353,8 +368,8 @@ fn run_hooks_with_compat_config() {
             let files = get_files_to_check();
             debug!("Found {} files to check", files.len());
 
-            // Run all hooks
-            match resolver.run_all_hooks(&files) {
+            // Run all hooks in parallel
+            match rt.block_on(executor.run_all_hooks(files)) {
                 Ok(_) => info!("All hooks passed!"),
                 Err(e) => {
                     error!("Error running hooks: {:?}", e);

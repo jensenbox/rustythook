@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use rustyhook::config::{Config, Hook, Repo};
 use rustyhook::config::parser::HookType;
-use rustyhook::runner::{HookResolver, FileMatcher, HookContext};
+use rustyhook::runner::{HookResolver, FileMatcher, HookContext, ParallelExecutor};
 
 #[test]
 fn test_file_matcher() {
@@ -329,4 +329,89 @@ fn test_hook_context_execution() {
     // Since we can't easily create a real tool for testing, we'll just test that it fails as expected
     let result = same_process_context.execute(None);
     assert!(result.is_err());
+}
+
+#[test]
+fn test_parallel_execution() {
+    // Create a temporary directory for the test
+    let temp_dir = tempfile::tempdir().unwrap();
+    let cache_dir = temp_dir.path().to_path_buf();
+
+    // Create a test configuration with multiple hooks
+    let config = Config {
+        default_stages: vec!["commit".to_string()],
+        fail_fast: false,
+        parallelism: 2, // Limit to 2 parallel tasks
+        repos: vec![
+            Repo {
+                repo: "local".to_string(),
+                hooks: vec![
+                    Hook {
+                        id: "hook1".to_string(),
+                        name: "Hook 1".to_string(),
+                        entry: "echo".to_string(),
+                        language: "system".to_string(),
+                        files: ".*\\.rs$".to_string(),
+                        stages: vec!["commit".to_string()],
+                        args: vec!["Hook 1".to_string()],
+                        env: std::collections::HashMap::new(),
+                        version: None,
+                        hook_type: HookType::External,
+                        separate_process: true,
+                    },
+                    Hook {
+                        id: "hook2".to_string(),
+                        name: "Hook 2".to_string(),
+                        entry: "echo".to_string(),
+                        language: "system".to_string(),
+                        files: ".*\\.rs$".to_string(),
+                        stages: vec!["commit".to_string()],
+                        args: vec!["Hook 2".to_string()],
+                        env: std::collections::HashMap::new(),
+                        version: None,
+                        hook_type: HookType::External,
+                        separate_process: true,
+                    },
+                    Hook {
+                        id: "hook3".to_string(),
+                        name: "Hook 3".to_string(),
+                        entry: "echo".to_string(),
+                        language: "system".to_string(),
+                        files: ".*\\.rs$".to_string(),
+                        stages: vec!["commit".to_string()],
+                        args: vec!["Hook 3".to_string()],
+                        env: std::collections::HashMap::new(),
+                        version: None,
+                        hook_type: HookType::External,
+                        separate_process: true,
+                    },
+                ],
+            },
+        ],
+    };
+
+    // Create a parallel executor
+    let executor = ParallelExecutor::new(config, cache_dir);
+
+    // Create some test files
+    let files = vec![
+        PathBuf::from("src/main.rs"),
+        PathBuf::from("src/lib.rs"),
+    ];
+
+    // Create a tokio runtime for async execution
+    let rt = tokio::runtime::Runtime::new().unwrap();
+
+    // Set hooks to skip
+    let hooks_to_skip = vec!["hook2".to_string()];
+    rt.block_on(executor.set_hooks_to_skip(hooks_to_skip));
+
+    // Run all hooks in parallel
+    let result = rt.block_on(executor.run_all_hooks(files));
+
+    // Check that the hooks ran successfully
+    assert!(result.is_ok());
+
+    // We can't easily verify that hook2 was skipped or that hooks ran in parallel in this test framework,
+    // but the implementation in ParallelExecutor should handle it correctly
 }

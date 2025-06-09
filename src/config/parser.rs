@@ -9,7 +9,7 @@ use std::path::Path;
 use std::fmt;
 
 /// Represents a complete RustyHook configuration
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     /// Default stages to run hooks on
     #[serde(default = "default_stages")]

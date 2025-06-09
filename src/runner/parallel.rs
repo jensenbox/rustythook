@@ -46,13 +46,21 @@ impl ParallelExecutor {
         }
     }
 
+    /// Set hooks to skip
+    pub async fn set_hooks_to_skip(&self, hooks: Vec<String>) {
+        let mut resolver = self.resolver.lock().await;
+        resolver.set_hooks_to_skip(hooks);
+    }
+
     /// Run all hooks on files in parallel
     pub async fn run_all_hooks(&self, files: Vec<PathBuf>) -> Result<(), ParallelExecutionError> {
-        // Get the configuration from the resolver
+        // Get the configuration and hooks to skip from the resolver
         // First, acquire the lock and get a reference to the resolver
         let resolver_guard = self.resolver.lock().await;
         // Clone the config to get an owned copy that doesn't depend on the resolver
         let config = resolver_guard.config();
+        // Get the hooks to skip
+        let hooks_to_skip = resolver_guard.hooks_to_skip().clone();
         // The lock is released here when resolver_guard goes out of scope
 
         // Get the parallelism limit from the config
@@ -61,11 +69,13 @@ impl ParallelExecutor {
         // Create a JoinSet to collect all tasks
         let mut tasks = JoinSet::new();
 
-        // Collect all hooks to run
+        // Collect all hooks to run, excluding those that should be skipped
         let mut hooks_to_run = Vec::new();
         for repo in &config.repos {
             for hook in &repo.hooks {
-                hooks_to_run.push((repo.repo.clone(), hook.id.clone()));
+                if !hooks_to_skip.contains(&hook.id) {
+                    hooks_to_run.push((repo.repo.clone(), hook.id.clone()));
+                }
             }
         }
 

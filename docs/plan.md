@@ -23,9 +23,10 @@ Tasks:
 - [x] Use a github action or something that will automatically bump the next version using heuristics of the commit messages and PRs - like labelling and titles containing things like "fix" or "feat" but using industry standard conventions. At this phase, we can release a new version every time a PR is merged in. The release notes can use a popular release notes generator from the PRs since last release.
 - [x] Remove the dependency on a base interpreter for python, node and ruby by downloading the required interpreters from the internet and installing locally. Make sure to abide by the correct versions in the .python-version and similar files. As this is for a monorepo you will need to ensure the use per sub-directory.
 - [x] Use the instructions found at docs/ruby.md to replace the current process of installing Ruby. Pay special attention to all the tasks and requirements.
-- [ ] Take the best ideas from the pre-commit and lefthook projects and integrate them into rustyhook.
+- [x] Take the best ideas from the pre-commit and lefthook projects and integrate them into rustyhook.
 - [ ] ensure all tasks can operate in parallel
-- [ ] implement an "explain" command that can be used to explain the current configuration and any errors that may have occurred.
+- [ ] We will need some sort of mutex system to ensure that the hooks are not running at the same time on the same file. Perhaps what might work better is to mark the hooks as readers or readers and writers to allow for all readers to execute first and in parallel but the reader/writers can only execute in parallel as long as their file globs do not overlap.
+- [ ] implement an "explain" command that can be used to explain the current configuration and any errors that may have occurred. Perhaps the existing doctor command can be used instead?
 - [ ] use uv to start all python hooks in a separate process
 - [ ] use fnm to start all node hooks in a separate process
 - [ ] Add a strict rust linter to the project
@@ -34,6 +35,12 @@ Tasks:
 - [ ] Add a section to the documentation on how to use custom hooks. Ensure that the documentation includes a section on how we would prefer custom hooks to be written into the main application to reduce the time to execute the application and consider the utility for other users. Provide guidance that if the hook is very specific that you can extend it with any of the supported languages. We will likely need a central repository for users to publish custom hooks to.
 - [ ] Ensure that the deployed version of the documentation is updated when a new release is created. Also make sure that the application reports its version and matches the release version.
 - [ ] Use the default mdBook theme for the documentation and github pages. Perhaps the only customization would be the use of the font "Inter". I am looking for a clean theme that works well out of the box for desktop and mobile.
+- [ ] When running each test, ensure that the caches have been cleared first.
+- [ ] Lets remove the `rh` executable and rename it to `rustyhook` - we will use a shell alias to make `rustyhook` available as `rh`. We can add that alias as part of the installation process - perhaps in the completion scripts.
+- [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
+- [ ] Add code coverage to the project and emit statistics on the coverage of the tests. Ideally the output should be in a format that can be used by codecov.io
+- [ ] Break up the hook tests into individual files per hook test - this should help adding more as it will keep things very tidy upon changes.
+- [ ] Enable each hook to be self-documenting. A given hook should know about all its options and how to set them. It will be useful to know these when crafting a configuration file. Ideally the documentation generator can use these values to auto-generate the documentation.
 - [ ] From the pre-commit repository https://github.com/pre-commit/pre-commit-hooks please implement the following hooks:
   - [ ] check-added-large-files
   - [ ] check-ast
@@ -64,9 +71,3 @@ Tasks:
   - [ ] requirements-txt-fixer
   - [ ] sort-simple-yaml
   - [ ] trailing-whitespace
-- [ ] When running each test, ensure that the caches have been cleared first.
-- [ ] Lets remove the `rh` executable and rename it to `rustyhook` - we will use a shell alias to make `rustyhook` available as `rh`. We can add that alias as part of the installation process - perhaps in the completion scripts.
-- [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
-- [ ] Add code coverage to the project and emit statistics on the coverage of the tests. Ideally the output should be in a format that can be used by codecov.io
-- [ ] Break up the hook tests into individual files per hook test - this should help adding more as it will keep things very tidy upon changes.
-- [ ] Enable each hook to be self-documentin. A given hook should know about all its options and how to set them. It will be useful to know these when crafting a configuration file. Ideally the documentation generator can use these values to auto-generate the documentation.
