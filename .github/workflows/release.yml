@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: RustyHook ${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+          body: |
+            RustyHook ${{ steps.get_version.outputs.version }}
+            
+            Please see [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+            
+            ## Installation
+            
+            ### Cargo
+            ```
+            cargo install rustyhook
+            ```
+            
+            ### Binary Downloads
+            - [Windows x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/rustyhook-${{ steps.get_version.outputs.version }}-x86_64-pc-windows-msvc.zip)
+            - [macOS x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/rustyhook-${{ steps.get_version.outputs.version }}-x86_64-apple-darwin.tar.gz)
+            - [Linux x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/rustyhook-${{ steps.get_version.outputs.version }}-x86_64-unknown-linux-gnu.tar.gz)
+
+  build-and-upload:
+    name: Build and Upload
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: rustyhook-${{ needs.create-release.outputs.version }}-x86_64-unknown-linux-gnu.tar.gz
+            asset_name: rustyhook-${{ needs.create-release.outputs.version }}-x86_64-unknown-linux-gnu.tar.gz
+            
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: rustyhook-${{ needs.create-release.outputs.version }}-x86_64-pc-windows-msvc.zip
+            asset_name: rustyhook-${{ needs.create-release.outputs.version }}-x86_64-pc-windows-msvc.zip
+            
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: rustyhook-${{ needs.create-release.outputs.version }}-x86_64-apple-darwin.tar.gz
+            asset_name: rustyhook-${{ needs.create-release.outputs.version }}-x86_64-apple-darwin.tar.gz
+            
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          target: ${{ matrix.target }}
+          
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+        
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/rh.exe dist/rustyhook.exe
+          cd dist
+          7z a ../${{ matrix.artifact_name }} *
+          
+      - name: Package (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/rh dist/rustyhook
+          cd dist
+          tar czf ../${{ matrix.artifact_name }} *
+          
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          asset_content_type: application/octet-stream
+
+  update-docs:
+    name: Update Documentation
+    needs: [create-release, build-and-upload]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          mdbook-version: 'latest'
+          
+      - name: Build Documentation
+        run: |
+          cd docs/book
+          mdbook build
+          
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/book/book
+          publish_branch: gh-pages
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'docs: update documentation for ${{ needs.create-release.outputs.version }}'

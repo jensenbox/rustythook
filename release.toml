@@ -1,0 +1,51 @@
+# Configuration for cargo-release
+# See https://github.com/crate-ci/cargo-release/blob/master/docs/reference.md for all options
+
+# Specify the level of version bump for the next release
+# Options: major, minor, patch, alpha, beta, rc
+# Default is patch
+level = "patch"
+
+# Don't publish to crates.io by default
+# This can be overridden with --publish
+publish = false
+
+# Don't push to the remote repository by default
+# This can be overridden with --push
+push = false
+
+# Don't create a tag by default
+# This can be overridden with --tag
+tag = true
+
+# Tag name template
+tag-name = "v{{version}}"
+
+# Automatically generate a changelog
+# This uses the conventional commit format
+pre-release-commit-message = "chore: release {{version}}"
+post-release-commit-message = "chore: start next development iteration {{next_version}}"
+
+# Specify the files to update with the new version
+# By default, only Cargo.toml is updated
+# We can add other files if needed
+#pre-release-replacements = [
+#  {file="README.md", search="Current version: [0-9]+\\.[0-9]+\\.[0-9]+", replace="Current version: {{version}}"},
+#  {file="src/lib.rs", search="const VERSION: &str = \"[0-9]+\\.[0-9]+\\.[0-9]+\"", replace="const VERSION: &str = \"{{version}}\""}
+#]
+
+# Sign the git commit
+sign-commit = false
+
+# Sign the git tag
+sign-tag = false
+
+# Verify that the current branch is clean
+verify = true
+
+# Run tests before release
+test = true
+
+# Run cargo fmt before release
+consolidate-commits = true
+allow-branch = ["main"]
