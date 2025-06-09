@@ -9,5 +9,6 @@ For each task, use the following workflow - execute each in order and show the r
  * run the relevant code to ensure it works as expected
  * run the application without any arguments and correct any errors and warnings you find iteratively until it works without error. Also, ensure running the test suite returns without errors or warnings.
  * run the application with the "run" argument and correct any errors and warnings you find iteratively until it works without error.
- * commit and push all files
+ * run all tests and correct any errors and warnings you find iteratively until all tests pass.
+ * commit and push all files - craft a good commit message.
 Only implement the first on the list and stop.

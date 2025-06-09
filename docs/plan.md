@@ -67,3 +67,4 @@ Tasks:
 - [ ] Lets remove the `rh` executable and rename it to `rustyhook` - we will use a shell alias to make `rustyhook` available as `rh`. We can add that alias as part of the installation process - perhaps in the completion scripts.
 - [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
 - [ ] Add code coverage to the project and emit statistics on the coverage of the tests. Ideally the output should be in a format that can be used by codecov.io
+- [ ] Break up the hook tests into individual files per hook test - this should help adding more as it will keep things very tidy upon changes.
