@@ -18,7 +18,6 @@ Tasks:
 - [x] Break up the implementations of the hooks into separate files and create a test suite for each file.
 - [ ] create tests for each hook and complete coverage
 - [ ] replace the npm and nvm install process with fnm if it makes sense to do so
-- [ ] expand all built in hooks to include all known hooks from https://pre-commit.com/hooks.html
 - [ ] Re-evaluate the use of python and other languages in the docker file as they are likely not needed
 - [ ] Use a mechanism to create and deploy semver compatible releases. Perhaps use cargo-release or some other mechanism to automatically generate release notes and create a tag - trigger a release on tag creation.
 - [ ] Remove the dependency on a base interpreter for python, node and ruby by downloading the required interpreters from the internet and installing locally. Make sure to abide by the correct versions in the .python-version and similar files. As this is for a monorepo you will need to ensure the use per sub-directory.
