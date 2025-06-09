@@ -1,12 +1,14 @@
 //! Node.js toolchain support for RustyHook
 //!
 //! This module provides functionality for managing Node.js environments and packages.
+//! It uses fnm (Fast Node Manager) to install and manage Node.js versions.
 
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use which::which;
 use serde::{Serialize, Deserialize};
+use log::{debug, info, warn, error};
 
 use super::r#trait::{SetupContext, Tool, ToolError};
 
@@ -73,6 +75,114 @@ impl NodeTool {
             package_manager: package_manager_str,
             install_dir,
         }
+    }
+
+    /// Check if fnm is installed
+    fn is_fnm_installed(&self) -> bool {
+        which("fnm").is_ok()
+    }
+
+    /// Install fnm
+    fn install_fnm(&self) -> Result<(), ToolError> {
+        debug!("Installing fnm...");
+
+        // Create a temporary directory for the installation
+        let temp_dir = std::env::temp_dir().join("rustyhook_fnm_install");
+        std::fs::create_dir_all(&temp_dir)?;
+
+        // Download the fnm installation script
+        let curl_output = Command::new("curl")
+            .arg("-fsSL")
+            .arg("https://fnm.vercel.app/install")
+            .current_dir(&temp_dir)
+            .output()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to download fnm: {}", e)))?;
+
+        if !curl_output.status.success() {
+            let stderr = String::from_utf8_lossy(&curl_output.stderr);
+            return Err(ToolError::ExecutionError(format!("Failed to download fnm: {}", stderr)));
+        }
+
+        // Save the script to a file
+        let script_path = temp_dir.join("install.sh");
+        std::fs::write(&script_path, curl_output.stdout)?;
+
+        // Make the script executable
+        Command::new("chmod")
+            .arg("+x")
+            .arg(&script_path)
+            .status()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to make fnm install script executable: {}", e)))?;
+
+        // Run the installation script with --skip-shell to avoid modifying shell config
+        let install_output = Command::new("bash")
+            .arg(&script_path)
+            .arg("--skip-shell")
+            .current_dir(&temp_dir)
+            .output()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to install fnm: {}", e)))?;
+
+        if !install_output.status.success() {
+            let stderr = String::from_utf8_lossy(&install_output.stderr);
+            return Err(ToolError::ExecutionError(format!("Failed to install fnm: {}", stderr)));
+        }
+
+        info!("fnm installed successfully");
+        Ok(())
+    }
+
+    /// Ensure Node.js is installed using fnm
+    fn ensure_node_installed(&self, node_version: &str) -> Result<(), ToolError> {
+        debug!("Ensuring Node.js {} is installed...", node_version);
+
+        // Check if fnm is installed, install it if not
+        if !self.is_fnm_installed() {
+            info!("fnm not found, installing...");
+            self.install_fnm()?;
+        }
+
+        // Check if the specified Node.js version is installed
+        let list_output = Command::new("fnm")
+            .arg("list")
+            .output()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to list Node.js versions: {}", e)))?;
+
+        let list_output_str = String::from_utf8_lossy(&list_output.stdout);
+
+        // If the version is not installed, install it
+        if !list_output_str.contains(node_version) {
+            info!("Installing Node.js {}...", node_version);
+
+            let install_output = Command::new("fnm")
+                .arg("install")
+                .arg(node_version)
+                .output()
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to install Node.js {}: {}", node_version, e)))?;
+
+            if !install_output.status.success() {
+                let stderr = String::from_utf8_lossy(&install_output.stderr);
+                return Err(ToolError::ExecutionError(format!("Failed to install Node.js {}: {}", node_version, stderr)));
+            }
+
+            info!("Node.js {} installed successfully", node_version);
+        } else {
+            debug!("Node.js {} is already installed", node_version);
+        }
+
+        // Use the specified Node.js version
+        let use_output = Command::new("fnm")
+            .arg("use")
+            .arg(node_version)
+            .output()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to use Node.js {}: {}", node_version, e)))?;
+
+        if !use_output.status.success() {
+            let stderr = String::from_utf8_lossy(&use_output.stderr);
+            return Err(ToolError::ExecutionError(format!("Failed to use Node.js {}: {}", node_version, stderr)));
+        }
+
+        debug!("Using Node.js {}", node_version);
+        Ok(())
     }
 
     /// Find the package manager executable
@@ -150,6 +260,11 @@ impl Tool for NodeTool {
 
         // Create the installation directory if it doesn't exist
         std::fs::create_dir_all(&ctx.install_dir)?;
+
+        // Ensure Node.js is installed using fnm
+        // Use LTS version if not specified
+        let node_version = ctx.version.as_deref().unwrap_or("lts");
+        self.ensure_node_installed(node_version)?;
 
         // Generate package.json
         self.generate_package_json(ctx)?;
