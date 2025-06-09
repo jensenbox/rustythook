@@ -16,7 +16,7 @@ Tasks:
 - [x] Use either https://gregoryszorc.com/docs/python-build-standalone/main/ or https://pyoxidizer.readthedocs.io/en/latest/pyoxy.html to download the specified python version and install it locally.
 - [x] Have uv use the downloaded python interpreter that is specified in the .python-version file. use uv for package installation. We will likely be able to remove a substantial amount of the code we have in our source code for installing python interpreters and installing packages.
 - [x] Break up the implementations of the hooks into separate files and create a test suite for each file.
-- [ ] create tests for each hook and complete coverage
+- [x] create tests for each hook and complete coverage
 - [ ] replace the npm and nvm install process with fnm if it makes sense to do so
 - [ ] Re-evaluate the use of python and other languages in the docker file as they are likely not needed
 - [ ] Use a mechanism to create and deploy semver compatible releases. Perhaps use cargo-release or some other mechanism to automatically generate release notes and create a tag - trigger a release on tag creation.

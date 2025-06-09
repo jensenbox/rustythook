@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::fs;
 use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
 use tempfile::tempdir;
 use rustyhook::hooks::{
     Hook, HookFactory, HookError,
@@ -17,6 +18,18 @@ fn create_temp_file(content: &str) -> (tempfile::TempDir, PathBuf) {
     let file_path = dir.path().join("test_file.txt");
     let mut file = fs::File::create(&file_path).unwrap();
     file.write_all(content.as_bytes()).unwrap();
+    (dir, file_path)
+}
+
+// Helper function to create a read-only temporary file with content
+fn create_readonly_temp_file(content: &str) -> (tempfile::TempDir, PathBuf) {
+    let (dir, file_path) = create_temp_file(content);
+
+    // Make the file read-only
+    let mut perms = fs::metadata(&file_path).unwrap().permissions();
+    perms.set_mode(0o444); // read-only for user, group, and others
+    fs::set_permissions(&file_path, perms).unwrap();
+
     (dir, file_path)
 }
 
@@ -92,6 +105,26 @@ fn test_trailing_whitespace_nonexistent_file() {
 }
 
 #[test]
+fn test_trailing_whitespace_permission_denied() {
+    // Create a read-only file with trailing whitespace
+    let (dir, file_path) = create_readonly_temp_file("Hello world  \nThis is a test \n");
+
+    // Run the hook
+    let hook = TrailingWhitespace;
+    let result = hook.run(&[file_path.clone()]);
+
+    // The hook should succeed because it skips files with permission denied errors
+    assert!(result.is_ok());
+
+    // Check that the file was not modified (still has trailing whitespace)
+    let content = fs::read_to_string(&file_path).unwrap();
+    assert_eq!(content, "Hello world  \nThis is a test \n");
+
+    // Keep the directory alive until the end of the test
+    drop(dir);
+}
+
+#[test]
 fn test_end_of_file_fixer() {
     // Create a file without a newline at the end
     let (dir, file_path) = create_temp_file("Hello world");
@@ -160,6 +193,26 @@ fn test_end_of_file_fixer_nonexistent_file() {
         Err(HookError::IoError(_)) => (),
         _ => panic!("Expected IoError"),
     }
+}
+
+#[test]
+fn test_end_of_file_fixer_permission_denied() {
+    // Create a read-only file without a newline at the end
+    let (dir, file_path) = create_readonly_temp_file("Hello world");
+
+    // Run the hook
+    let hook = EndOfFileFixer;
+    let result = hook.run(&[file_path.clone()]);
+
+    // The hook should succeed because it skips files with permission denied errors
+    assert!(result.is_ok());
+
+    // Check that the file was not modified (still has no newline at the end)
+    let content = fs::read_to_string(&file_path).unwrap();
+    assert_eq!(content, "Hello world");
+
+    // Keep the directory alive until the end of the test
+    drop(dir);
 }
 
 #[test]
