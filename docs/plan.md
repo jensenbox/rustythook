@@ -15,7 +15,7 @@ Tasks:
 - [x] Instead of having a separate binary called "rustyhooks-hooks" I think we should continue to use our primary "rustyhook" binary and have a sub-command that can be used to run the hooks. This will allow us to run the hooks in parallel and also allow us to run the hooks in a different process than the main application. Should help debugging specific hooks.
 - [x] Use either https://gregoryszorc.com/docs/python-build-standalone/main/ or https://pyoxidizer.readthedocs.io/en/latest/pyoxy.html to download the specified python version and install it locally.
 - [x] Have uv use the downloaded python interpreter that is specified in the .python-version file. use uv for package installation. We will likely be able to remove a substantial amount of the code we have in our source code for installing python interpreters and installing packages.
-- [ ] Break up the implementations of the hooks into separate files and create a test suite for each file.
+- [x] Break up the implementations of the hooks into separate files and create a test suite for each file.
 - [ ] create tests for each hook and complete coverage
 - [ ] replace the npm and nvm install process with fnm if it makes sense to do so
 - [ ] expand all built in hooks to include all known hooks from https://pre-commit.com/hooks.html
@@ -28,6 +28,7 @@ Tasks:
 - [ ] use uv to start all python hooks in a separate process
 - [ ] use fnm to start all node hooks in a separate process
 - [ ] Add a strict rust linter to the project
+- [ ] Run rustyhook in compatible mode and ensure that it works with the pre-commit file found at 'docs/.pre-commit-config.yaml' - run the cache cleaner first to ensure it works from nothing.
 - [ ] Expand the documentation to include a section on how to use rustyhook in a monorepo - ensure the code works with monorepos. It should allow different sub-directories to have different configurations. There should be the option of merging configurations or using the most specific configuration.
 - [ ] Add a section to the documentation on how to use custom hooks. Ensure that the documentation includes a section on how we would prefer custom hooks to be written into the main application to reduce the time to execute the application and consider the utility for other users. Provide guidance that if the hook is very specific that you can extend it with any of the supported languages. We will likely need a central repository for users to publish custom hooks to.
 - [ ] Ensure that the deployed version of the documentation is updated when a new release is created. Also make sure that the application reports its version and matches the release version.
@@ -65,3 +66,4 @@ Tasks:
 - [ ] When running each test, ensure that the caches have been cleared first.
 - [ ] Lets remove the `rh` executable and rename it to `rustyhook` - we will use a shell alias to make `rustyhook` available as `rh`. We can add that alias as part of the installation process - perhaps in the completion scripts.
 - [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
+- [ ] Add code coverage to the project and emit statistics on the coverage of the tests. Ideally the output should be in a format that can be used by codecov.io
