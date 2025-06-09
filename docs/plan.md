@@ -14,8 +14,7 @@ Tasks:
 - [x] Make sure that the file in `docs/.pre-commit-config.yaml` can be used and converted to the rustyhook configuration file format. Importantly it should set up its own python environment and install the required packages without needing the system to have anything installed.
 - [x] Instead of having a separate binary called "rustyhooks-hooks" I think we should continue to use our primary "rustyhook" binary and have a sub-command that can be used to run the hooks. This will allow us to run the hooks in parallel and also allow us to run the hooks in a different process than the main application. Should help debugging specific hooks.
 - [x] Use either https://gregoryszorc.com/docs/python-build-standalone/main/ or https://pyoxidizer.readthedocs.io/en/latest/pyoxy.html to download the specified python version and install it locally.
-- [ ] Have uv use the downloaded python interpreter that is specified in the .python-version file. use uv for package installation. We will likely be able to remove a substantial amount of the code we have in our source code for installing python interpreters and installing packages.
-- [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks
+- [x] Have uv use the downloaded python interpreter that is specified in the .python-version file. use uv for package installation. We will likely be able to remove a substantial amount of the code we have in our source code for installing python interpreters and installing packages.
 - [ ] Break up the implementations of the hooks into separate files and create a test suite for each file.
 - [ ] create tests for each hook and complete coverage
 - [ ] replace the npm and nvm install process with fnm if it makes sense to do so
@@ -65,3 +64,4 @@ Tasks:
   - [ ] trailing-whitespace
 - [ ] When running each test, ensure that the caches have been cleared first.
 - [ ] Lets remove the `rh` executable and rename it to `rustyhook` - we will use a shell alias to make `rustyhook` available as `rh`. We can add that alias as part of the installation process - perhaps in the completion scripts.
+- [ ] emulate all known pre-commit hooks for use with native execution - all known hooks at https://github.com/pre-commit/pre-commit-hooks

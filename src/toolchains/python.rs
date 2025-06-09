@@ -4,7 +4,7 @@
 
 use std::fs;
 use std::io::{self, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use which::which;
 
@@ -51,6 +51,38 @@ impl PythonTool {
         }
     }
 
+    /// Read Python version from .python-version file
+    fn read_python_version_file(dir: &Path) -> Option<String> {
+        // Start from the given directory and look for .python-version file
+        let mut current_dir = Some(dir.to_path_buf());
+
+        while let Some(dir) = current_dir {
+            let version_file = dir.join(".python-version");
+
+            if version_file.exists() {
+                // Read the file content
+                match fs::read_to_string(&version_file) {
+                    Ok(content) => {
+                        // Trim whitespace and return the version
+                        let version = content.trim().to_string();
+                        if !version.is_empty() {
+                            log::info!("Found Python version {} in {:?}", version, version_file);
+                            return Some(version);
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to read .python-version file: {}", e);
+                    }
+                }
+            }
+
+            // Move up to the parent directory
+            current_dir = dir.parent().map(|p| p.to_path_buf());
+        }
+
+        None
+    }
+
     /// Find the Python executable
     fn find_python() -> Result<PathBuf, ToolError> {
         // Try to find Python 3.7+
@@ -67,9 +99,20 @@ impl PythonTool {
 
     /// Get the Python download URL based on the operating system and architecture
     /// Uses python-build-standalone from Gregory Szorc's project
-    fn get_python_download_url() -> Result<String, ToolError> {
+    fn get_python_download_url(ctx: Option<&SetupContext>) -> Result<String, ToolError> {
         // Default to Python 3.9.18 as it's stable and widely compatible
-        let version = "3.9.18";
+        let mut version = "3.9.18".to_string();
+
+        // Check for .python-version file if context is provided
+        if let Some(_context) = ctx {
+            // Try to find .python-version in the current directory or parent directories
+            let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            if let Some(python_version) = Self::read_python_version_file(&current_dir) {
+                // Use the version from .python-version file
+                version = python_version;
+                log::info!("Using Python version {} from .python-version file", version);
+            }
+        }
 
         // python-build-standalone version
         let pbs_version = "20240224";
@@ -98,12 +141,12 @@ impl PythonTool {
     }
 
     /// Download Python from the official website
-    fn download_python(download_dir: &PathBuf) -> Result<PathBuf, ToolError> {
+    fn download_python(download_dir: &PathBuf, ctx: Option<&SetupContext>) -> Result<PathBuf, ToolError> {
         // Create the download directory if it doesn't exist
         fs::create_dir_all(download_dir)?;
 
         // Get the download URL
-        let url = Self::get_python_download_url()?;
+        let url = Self::get_python_download_url(ctx)?;
 
         // Extract the filename from the URL
         let filename = url.split('/').last().unwrap_or("python.tgz");
@@ -307,8 +350,8 @@ impl PythonTool {
         let extract_dir = ctx.cache_dir.join("extracted");
         let install_dir = ctx.install_dir.join("python");
 
-        // Download Python
-        let archive_path = Self::download_python(&download_dir)?;
+        // Download Python, passing the context to use .python-version if available
+        let archive_path = Self::download_python(&download_dir, Some(ctx))?;
 
         // Extract Python
         let python_dir = Self::extract_python(&archive_path, &extract_dir)?;
@@ -415,20 +458,13 @@ impl PythonTool {
         Ok(())
     }
 
-    /// Install packages in the virtualenv using pip (traditional approach)
+    /// Install packages in the virtualenv using uv when possible
     fn install_packages(&self, ctx: &SetupContext) -> Result<(), ToolError> {
         // Find the python executable in the virtualenv
         let python = if cfg!(windows) {
             ctx.install_dir.join("Scripts").join("python.exe")
         } else {
             ctx.install_dir.join("bin").join("python")
-        };
-
-        // Find the pip executable in the virtualenv
-        let pip = if cfg!(windows) {
-            ctx.install_dir.join("Scripts").join("pip.exe")
-        } else {
-            ctx.install_dir.join("bin").join("pip")
         };
 
         // Check if the python executable exists in the virtualenv
@@ -442,134 +478,147 @@ impl PythonTool {
 
         // Install all packages at once for better performance
         if !self.packages.is_empty() {
-            // First, try to install uv directly using pip
-            let status = Command::new(&pip)
+            // First, try to install uv directly using python -m pip
+            log::info!("Installing uv package manager...");
+            let status = Command::new(&python)
+                .arg("-m")
+                .arg("pip")
                 .arg("install")
-                .arg("uv")
+                .arg("--upgrade")
+                .arg("pip")  // Ensure pip is up to date
+                .arg("uv")   // Install uv
                 .status()
                 .map_err(|e| ToolError::ExecutionError(format!("Failed to install uv: {}", e)))?;
 
             if !status.success() {
                 log::warn!("Failed to install uv, falling back to regular pip for package installation");
+                return self.install_packages_with_pip(&python, ctx);
+            }
 
-                // If uv installation fails, fall back to regular pip for package installation
-                let mut cmd = Command::new(&pip);
-                cmd.arg("install");
+            // If uv installation succeeds, use it to install packages
+            let uv = if cfg!(windows) {
+                ctx.install_dir.join("Scripts").join("uv.exe")
+            } else {
+                ctx.install_dir.join("bin").join("uv")
+            };
+
+            // Check if the uv executable exists
+            if !uv.exists() {
+                log::warn!("uv executable not found at {:?}, falling back to regular pip", uv);
+                return self.install_packages_with_pip(&python, ctx);
+            }
+
+            // Check for .python-version file to use the specified Python interpreter
+            let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            let python_version = Self::read_python_version_file(&current_dir);
+
+            if let Some(version) = python_version {
+                log::info!("Using Python version {} from .python-version file with uv", version);
+
+                // Use uv with the specified Python version
+                let mut cmd = Command::new(&uv);
+                cmd.arg("pip")
+                    .arg("--python")
+                    .arg(version)
+                    .arg("install");
 
                 // Add all packages as arguments
                 for package in &self.packages {
                     cmd.arg(package);
                 }
 
-                log::debug!("Running pip command: {:?}", cmd);
+                log::debug!("Running uv command with specified Python version: {:?}", cmd);
 
                 let output = cmd.output()
-                    .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with pip: {}", e)))?;
+                    .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with uv: {}", e)))?;
 
                 if !output.status.success() {
                     let stderr = String::from_utf8_lossy(&output.stderr);
                     let stdout = String::from_utf8_lossy(&output.stdout);
-                    log::error!("pip stderr: {}", stderr);
-                    log::error!("pip stdout: {}", stdout);
-                    return Err(ToolError::ExecutionError(
-                        format!("Failed to install packages with pip: {}", stderr),
-                    ));
+                    log::error!("uv stderr: {}", stderr);
+                    log::error!("uv stdout: {}", stdout);
+                    log::warn!("Failed to install packages with uv using specified Python version, falling back to regular uv");
+
+                    // Fall back to regular uv without specifying Python version
+                    return self.install_packages_with_uv(&uv, ctx);
                 }
 
-                log::debug!("Successfully installed packages with pip");
+                log::debug!("Successfully installed packages with uv using specified Python version");
             } else {
-                // If uv installation succeeds, use it to install packages
-                let uv = if cfg!(windows) {
-                    ctx.install_dir.join("Scripts").join("uv.exe")
-                } else {
-                    ctx.install_dir.join("bin").join("uv")
-                };
-
-                // Check if the uv executable exists
-                if !uv.exists() {
-                    log::warn!("uv executable not found at {:?}, falling back to regular pip", uv);
-
-                    // If uv is not found, fall back to regular pip
-                    let mut cmd = Command::new(&pip);
-                    cmd.arg("install");
-
-                    // Add all packages as arguments
-                    for package in &self.packages {
-                        cmd.arg(package);
-                    }
-
-                    log::debug!("Running pip command: {:?}", cmd);
-
-                    let output = cmd.output()
-                        .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with pip: {}", e)))?;
-
-                    if !output.status.success() {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        log::error!("pip stderr: {}", stderr);
-                        log::error!("pip stdout: {}", stdout);
-                        return Err(ToolError::ExecutionError(
-                            format!("Failed to install packages with pip: {}", stderr),
-                        ));
-                    }
-
-                    log::debug!("Successfully installed packages with pip");
-                } else {
-                    // Use uv to install packages
-                    let mut cmd = Command::new(&uv);
-                    cmd.arg("pip")
-                        .arg("install");
-
-                    // Add all packages as arguments
-                    for package in &self.packages {
-                        cmd.arg(package);
-                    }
-
-                    log::debug!("Running uv command: {:?}", cmd);
-
-                    let output = cmd.output()
-                        .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with uv: {}", e)))?;
-
-                    if !output.status.success() {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        log::error!("uv stderr: {}", stderr);
-                        log::error!("uv stdout: {}", stdout);
-
-                        log::warn!("Failed to install packages with uv, falling back to regular pip");
-
-                        // If uv fails, fall back to regular pip
-                        let mut cmd = Command::new(&pip);
-                        cmd.arg("install");
-
-                        // Add all packages as arguments
-                        for package in &self.packages {
-                            cmd.arg(package);
-                        }
-
-                        log::debug!("Running pip command: {:?}", cmd);
-
-                        let output = cmd.output()
-                            .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with pip: {}", e)))?;
-
-                        if !output.status.success() {
-                            let stderr = String::from_utf8_lossy(&output.stderr);
-                            let stdout = String::from_utf8_lossy(&output.stdout);
-                            log::error!("pip stderr: {}", stderr);
-                            log::error!("pip stdout: {}", stdout);
-                            return Err(ToolError::ExecutionError(
-                                format!("Failed to install packages with pip: {}", stderr),
-                            ));
-                        }
-
-                        log::debug!("Successfully installed packages with pip");
-                    } else {
-                        log::debug!("Successfully installed packages with uv");
-                    }
-                }
+                // No .python-version file found, use regular uv
+                log::info!("No .python-version file found, using regular uv");
+                return self.install_packages_with_uv(&uv, ctx);
             }
         }
 
+        Ok(())
+    }
+
+    /// Install packages using uv
+    fn install_packages_with_uv(&self, uv: &PathBuf, ctx: &SetupContext) -> Result<(), ToolError> {
+        let mut cmd = Command::new(uv);
+        cmd.arg("pip")
+            .arg("install");
+
+        // Add all packages as arguments
+        for package in &self.packages {
+            cmd.arg(package);
+        }
+
+        log::debug!("Running uv command: {:?}", cmd);
+
+        let output = cmd.output()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with uv: {}", e)))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            log::error!("uv stderr: {}", stderr);
+            log::error!("uv stdout: {}", stdout);
+            log::warn!("Failed to install packages with uv, falling back to regular pip");
+
+            // Find the python executable in the virtualenv
+            let python = if cfg!(windows) {
+                ctx.install_dir.join("Scripts").join("python.exe")
+            } else {
+                ctx.install_dir.join("bin").join("python")
+            };
+
+            return self.install_packages_with_pip(&python, ctx);
+        }
+
+        log::debug!("Successfully installed packages with uv");
+        Ok(())
+    }
+
+    /// Install packages using pip
+    fn install_packages_with_pip(&self, python: &PathBuf, _ctx: &SetupContext) -> Result<(), ToolError> {
+        let mut cmd = Command::new(python);
+        cmd.arg("-m")
+            .arg("pip")
+            .arg("install");
+
+        // Add all packages as arguments
+        for package in &self.packages {
+            cmd.arg(package);
+        }
+
+        log::debug!("Running pip command: {:?}", cmd);
+
+        let output = cmd.output()
+            .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with pip: {}", e)))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            log::error!("pip stderr: {}", stderr);
+            log::error!("pip stdout: {}", stdout);
+            return Err(ToolError::ExecutionError(
+                format!("Failed to install packages with pip: {}", stderr),
+            ));
+        }
+
+        log::debug!("Successfully installed packages with pip");
         Ok(())
     }
 }

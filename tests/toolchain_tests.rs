@@ -108,6 +108,71 @@ fn test_python_tool_with_uv() {
 }
 
 #[test]
+fn test_python_tool_with_python_version_file() {
+    // Create a temporary directory for the test
+    let temp_dir = tempfile::tempdir().unwrap();
+    let cache_dir = temp_dir.path().join(".rustyhook").join("cache");
+
+    // Create a .python-version file in the temporary directory
+    let python_version = "3.9.18"; // Use a version that's compatible with python-build-standalone
+    let python_version_file = temp_dir.path().join(".python-version");
+    std::fs::write(&python_version_file, python_version).unwrap();
+    println!("Created .python-version file at {:?} with version {}", python_version_file, python_version);
+
+    // Change to the temporary directory to ensure .python-version is found
+    let original_dir = std::env::current_dir().unwrap();
+    std::env::set_current_dir(temp_dir.path()).unwrap();
+    println!("Changed current directory to {:?}", temp_dir.path());
+
+    // Create a Python tool with a test package
+    let python_tool = PythonTool::new("black", "1.0.0", vec!["black".to_string()]);
+
+    // Get the installation directory from the Python tool
+    let install_dir = python_tool.install_dir().clone();
+
+    // Create the cache directory
+    std::fs::create_dir_all(&cache_dir).unwrap();
+
+    // Create a setup context
+    let ctx = SetupContext {
+        cache_dir: cache_dir.clone(),
+        install_dir: install_dir.clone(),
+        force: true, // Force reinstallation to ensure we use the specified Python version
+        version: Some("1.0.0".to_string()),
+    };
+
+    // Set up the Python tool (this should use the Python version from .python-version)
+    println!("Setting up Python tool with .python-version file...");
+    let result = python_tool.setup(&ctx);
+
+    // Change back to the original directory
+    std::env::set_current_dir(original_dir).unwrap();
+
+    // Check that the setup was successful
+    assert!(result.is_ok(), "Failed to set up Python tool: {:?}", result);
+
+    // Check that the Python tool is installed
+    println!("Checking if Python tool is installed...");
+    let is_installed = python_tool.is_installed();
+    println!("Python tool is installed: {}", is_installed);
+
+    // Check that the black package is installed
+    let black_path = if cfg!(windows) {
+        install_dir.join("Scripts").join("black.exe")
+    } else {
+        install_dir.join("bin").join("black")
+    };
+    println!("Black path: {:?}", black_path);
+    println!("Black path exists: {}", black_path.exists());
+
+    // Assert that the Python tool is installed
+    assert!(is_installed, "Python tool is not installed");
+
+    // Assert that the black package is installed
+    assert!(black_path.exists(), "black package is not installed");
+}
+
+#[test]
 fn test_python_build_standalone() {
     // Create a temporary directory for the test
     let temp_dir = tempfile::tempdir().unwrap();
