@@ -302,8 +302,15 @@ impl PythonTool {
         Ok(())
     }
 
-    /// Install packages in the virtualenv
+    /// Install packages in the virtualenv using pip (traditional approach)
     fn install_packages(&self, ctx: &SetupContext) -> Result<(), ToolError> {
+        // Find the python executable in the virtualenv
+        let python = if cfg!(windows) {
+            ctx.install_dir.join("Scripts").join("python.exe")
+        } else {
+            ctx.install_dir.join("bin").join("python")
+        };
+
         // Find the pip executable in the virtualenv
         let pip = if cfg!(windows) {
             ctx.install_dir.join("Scripts").join("pip.exe")
@@ -311,18 +318,142 @@ impl PythonTool {
             ctx.install_dir.join("bin").join("pip")
         };
 
-        // Install each package
-        for package in &self.packages {
+        // Check if the python executable exists in the virtualenv
+        if !python.exists() {
+            return Err(ToolError::ExecutionError(
+                format!("Python executable not found at {:?}", python),
+            ));
+        }
+
+        log::debug!("Python executable found at {:?}", python);
+
+        // Install all packages at once for better performance
+        if !self.packages.is_empty() {
+            // First, try to install uv directly using pip
             let status = Command::new(&pip)
                 .arg("install")
-                .arg(package)
+                .arg("uv")
                 .status()
-                .map_err(|e| ToolError::ExecutionError(format!("Failed to install {}: {}", package, e)))?;
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to install uv: {}", e)))?;
 
             if !status.success() {
-                return Err(ToolError::ExecutionError(
-                    format!("Failed to install {}", package),
-                ));
+                log::warn!("Failed to install uv, falling back to regular pip for package installation");
+
+                // If uv installation fails, fall back to regular pip for package installation
+                let mut cmd = Command::new(&pip);
+                cmd.arg("install");
+
+                // Add all packages as arguments
+                for package in &self.packages {
+                    cmd.arg(package);
+                }
+
+                log::debug!("Running pip command: {:?}", cmd);
+
+                let output = cmd.output()
+                    .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with pip: {}", e)))?;
+
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    log::error!("pip stderr: {}", stderr);
+                    log::error!("pip stdout: {}", stdout);
+                    return Err(ToolError::ExecutionError(
+                        format!("Failed to install packages with pip: {}", stderr),
+                    ));
+                }
+
+                log::debug!("Successfully installed packages with pip");
+            } else {
+                // If uv installation succeeds, use it to install packages
+                let uv = if cfg!(windows) {
+                    ctx.install_dir.join("Scripts").join("uv.exe")
+                } else {
+                    ctx.install_dir.join("bin").join("uv")
+                };
+
+                // Check if the uv executable exists
+                if !uv.exists() {
+                    log::warn!("uv executable not found at {:?}, falling back to regular pip", uv);
+
+                    // If uv is not found, fall back to regular pip
+                    let mut cmd = Command::new(&pip);
+                    cmd.arg("install");
+
+                    // Add all packages as arguments
+                    for package in &self.packages {
+                        cmd.arg(package);
+                    }
+
+                    log::debug!("Running pip command: {:?}", cmd);
+
+                    let output = cmd.output()
+                        .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with pip: {}", e)))?;
+
+                    if !output.status.success() {
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        log::error!("pip stderr: {}", stderr);
+                        log::error!("pip stdout: {}", stdout);
+                        return Err(ToolError::ExecutionError(
+                            format!("Failed to install packages with pip: {}", stderr),
+                        ));
+                    }
+
+                    log::debug!("Successfully installed packages with pip");
+                } else {
+                    // Use uv to install packages
+                    let mut cmd = Command::new(&uv);
+                    cmd.arg("pip")
+                        .arg("install");
+
+                    // Add all packages as arguments
+                    for package in &self.packages {
+                        cmd.arg(package);
+                    }
+
+                    log::debug!("Running uv command: {:?}", cmd);
+
+                    let output = cmd.output()
+                        .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with uv: {}", e)))?;
+
+                    if !output.status.success() {
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        log::error!("uv stderr: {}", stderr);
+                        log::error!("uv stdout: {}", stdout);
+
+                        log::warn!("Failed to install packages with uv, falling back to regular pip");
+
+                        // If uv fails, fall back to regular pip
+                        let mut cmd = Command::new(&pip);
+                        cmd.arg("install");
+
+                        // Add all packages as arguments
+                        for package in &self.packages {
+                            cmd.arg(package);
+                        }
+
+                        log::debug!("Running pip command: {:?}", cmd);
+
+                        let output = cmd.output()
+                            .map_err(|e| ToolError::ExecutionError(format!("Failed to install packages with pip: {}", e)))?;
+
+                        if !output.status.success() {
+                            let stderr = String::from_utf8_lossy(&output.stderr);
+                            let stdout = String::from_utf8_lossy(&output.stdout);
+                            log::error!("pip stderr: {}", stderr);
+                            log::error!("pip stdout: {}", stdout);
+                            return Err(ToolError::ExecutionError(
+                                format!("Failed to install packages with pip: {}", stderr),
+                            ));
+                        }
+
+                        log::debug!("Successfully installed packages with pip");
+                    } else {
+                        log::debug!("Successfully installed packages with uv");
+                    }
+                }
             }
         }
 
@@ -399,6 +530,13 @@ impl Tool for PythonTool {
     }
 
     fn is_installed(&self) -> bool {
+        // For Python tools, we need to check if the Python executable and the tool executable exist
+        let python_path = if cfg!(windows) {
+            self.install_dir.join("Scripts").join("python.exe")
+        } else {
+            self.install_dir.join("bin").join("python")
+        };
+
         // Check if the tool executable exists in the virtualenv
         let tool_path = if cfg!(windows) {
             self.install_dir.join("Scripts").join(format!("{}.exe", self.name))
@@ -406,7 +544,14 @@ impl Tool for PythonTool {
             self.install_dir.join("bin").join(&self.name)
         };
 
-        tool_path.exists()
+        // Log the paths for debugging
+        log::debug!("Checking if Python tool is installed:");
+        log::debug!("  Python path: {:?}, exists: {}", python_path, python_path.exists());
+        log::debug!("  Tool path: {:?}, exists: {}", tool_path, tool_path.exists());
+
+        // For Python tools, we consider them installed if both the Python executable
+        // and the tool executable exist
+        python_path.exists() && tool_path.exists()
     }
 
     fn install_dir(&self) -> &PathBuf {

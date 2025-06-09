@@ -148,10 +148,27 @@ impl HookContext {
     pub fn run_in_separate_process(&self) -> Result<(), HookContextError> {
         println!("Running hook {} in separate process", self.id);
 
-        // Create a command to run the hook
-        let mut command = Command::new(&self.entry);
+        // Parse the entry to separate the command from any arguments
+        let parts: Vec<&str> = self.entry.split_whitespace().collect();
+        if parts.is_empty() {
+            return Err(HookContextError::ProcessError(format!(
+                "Empty entry for hook {}", self.id
+            )));
+        }
 
-        // Add arguments
+        // The first part is the command, the rest are arguments
+        let command_name = parts[0];
+        let command_args = &parts[1..];
+
+        // Create a command to run the hook
+        let mut command = Command::new(command_name);
+
+        // Add any arguments from the entry
+        for arg in command_args {
+            command.arg(arg);
+        }
+
+        // Add arguments from the hook configuration
         for arg in &self.args {
             command.arg(arg);
         }
