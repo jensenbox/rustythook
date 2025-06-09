@@ -191,3 +191,23 @@ fn test_version_command() {
     assert_eq!(status, 0);
     assert!(stdout.contains("rustyhook"));
 }
+
+#[test]
+fn test_hook_command() {
+    // Test the 'hook' command with a hook ID
+    let result = run_cli(&["hook", "trailing-whitespace"]);
+    assert!(result.is_ok());
+
+    let (stdout, stderr, status) = result.unwrap();
+    assert!(stdout.contains("Running hook trailing-whitespace..."));
+    assert!(stdout.contains("No files to process for hook trailing-whitespace"));
+
+    // Test with a non-existent hook ID
+    let result = run_cli(&["hook", "non-existent-hook"]);
+    assert!(result.is_ok());
+
+    let (stdout, stderr, status) = result.unwrap();
+    assert!(stdout.contains("Running hook non-existent-hook..."));
+    assert_ne!(status, 0); // Should fail with a non-zero exit code
+    assert!(stdout.contains("Error creating hook: Other(\"Unknown hook ID: non-existent-hook\")"));
+}

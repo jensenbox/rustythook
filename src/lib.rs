@@ -106,6 +106,20 @@ pub enum Commands {
         #[arg(long)]
         force: bool,
     },
+
+    /// Run a specific hook directly
+    Hook {
+        /// ID of the hook to run
+        hook_id: String,
+
+        /// Arguments to pass to the hook
+        #[arg(long, short)]
+        args: Vec<String>,
+
+        /// Files to process
+        #[arg(last = true)]
+        files: Vec<PathBuf>,
+    },
 }
 
 /// Main entry point for the RustyHook CLI
@@ -191,6 +205,10 @@ pub fn main() {
         Commands::Install { hook_type, force } => {
             info!("Installing rustyhook as a {} Git hook...", hook_type);
             install_git_hook(&hook_type, force);
+        }
+        Commands::Hook { hook_id, args, files } => {
+            info!("Running hook {}...", hook_id);
+            run_hook(&hook_id, &args, &files);
         }
     }
 }
@@ -566,6 +584,35 @@ fn find_git_directory() -> Option<std::path::PathBuf> {
         }
         if !current_dir.pop() {
             return None;
+        }
+    }
+}
+
+/// Run a specific hook directly
+fn run_hook(hook_id: &str, args: &[String], files: &[PathBuf]) {
+    // Create the hook
+    let hook = match hooks::HookFactory::create_hook(hook_id, args) {
+        Ok(hook) => hook,
+        Err(err) => {
+            error!("Error creating hook: {:?}", err);
+            std::process::exit(1);
+        }
+    };
+
+    // If no files were specified or found, exit successfully
+    if files.is_empty() {
+        info!("No files to process for hook {}", hook_id);
+        return;
+    }
+
+    // Run the hook
+    match hook.run(files) {
+        Ok(()) => {
+            info!("Hook {} ran successfully", hook_id);
+        }
+        Err(err) => {
+            error!("Error running hook: {:?}", err);
+            std::process::exit(1);
         }
     }
 }
