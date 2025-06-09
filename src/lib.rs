@@ -71,6 +71,10 @@ pub enum Commands {
         /// Delete the original pre-commit config file after conversion
         #[arg(long)]
         delete_original: bool,
+
+        /// Path to the pre-commit config file
+        #[arg(long)]
+        config_path: Option<PathBuf>,
     },
 
     /// Create a starter .rustyhook/config.yaml
@@ -139,15 +143,23 @@ pub fn main() {
             info!("Running hooks using .pre-commit-config.yaml...");
             run_hooks_with_compat_config();
         }
-        Commands::Convert { from_precommit, delete_original } => {
+        Commands::Convert { from_precommit, delete_original, config_path } => {
             if from_precommit {
                 info!("Converting from .pre-commit-config.yaml to .rustyhook/config.yaml...");
                 if delete_original {
                     info!("The original pre-commit config file will be deleted after conversion.");
                 }
-                match config::convert_from_precommit::<&str>(None, None, delete_original) {
-                    Ok(_) => info!("Conversion successful!"),
-                    Err(e) => error!("Error converting configuration: {:?}", e),
+                if let Some(path) = &config_path {
+                    info!("Using pre-commit config file at: {}", path.display());
+                    match config::convert_from_precommit(Some(path), None, delete_original) {
+                        Ok(_) => info!("Conversion successful!"),
+                        Err(e) => error!("Error converting configuration: {:?}", e),
+                    }
+                } else {
+                    match config::convert_from_precommit::<&str>(None, None, delete_original) {
+                        Ok(_) => info!("Conversion successful!"),
+                        Err(e) => error!("Error converting configuration: {:?}", e),
+                    }
                 }
             } else {
                 warn!("Please specify --from-precommit to convert from pre-commit config");

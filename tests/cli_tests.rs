@@ -10,7 +10,7 @@ fn run_cli(args: &[&str]) -> Result<(String, String, i32), Box<dyn std::error::E
     let rustyhook_bin = env::current_exe()?
         .parent().unwrap()
         .parent().unwrap()
-        .join("rustyhook");
+        .join("rh");
 
     let output = Command::new(rustyhook_bin)
         .args(args)
@@ -61,6 +61,38 @@ fn test_convert_command() {
     let (stdout, stderr, status) = result.unwrap();
     assert!(stdout.contains("Converting from .pre-commit-config.yaml"));
     // Note: The actual result might vary depending on whether a pre-commit config file exists
+}
+
+#[test]
+fn test_convert_command_with_config_path() {
+    // Create a temporary directory for the test
+    let temp_dir = tempfile::tempdir().unwrap();
+    let original_dir = env::current_dir().unwrap();
+
+    // Copy the docs/.pre-commit-config.yaml file to the temporary directory
+    let source_path = original_dir.join("docs").join(".pre-commit-config.yaml");
+    let target_path = temp_dir.path().join(".pre-commit-config.yaml");
+    std::fs::copy(&source_path, &target_path).unwrap();
+
+    // Change to the temporary directory
+    env::set_current_dir(&temp_dir).unwrap();
+
+    // Test the 'convert' command with --from-precommit and --config-path
+    let config_path = source_path.to_str().unwrap();
+    let result = run_cli(&["convert", "--from-precommit", "--config-path", config_path]);
+    assert!(result.is_ok());
+
+    let (stdout, stderr, status) = result.unwrap();
+    assert!(stdout.contains("Converting from .pre-commit-config.yaml"));
+    assert!(stdout.contains(&format!("Using pre-commit config file at: {}", config_path)));
+    assert!(stdout.contains("Conversion successful"));
+
+    // Check if the config file was created
+    let rustyhook_config_path = temp_dir.path().join(".rustyhook").join("config.yaml");
+    assert!(rustyhook_config_path.exists());
+
+    // Change back to the original directory
+    env::set_current_dir(original_dir).unwrap();
 }
 
 #[test]
