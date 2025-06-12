@@ -1,0 +1,1097 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>RustyHook Documentation</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for RustyHook, a blazing-fast, Rust-native Git hook runner">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">RustyHook Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/your-org/rustyhook" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="rustyhook"><a class="header" href="#rustyhook">RustyHook</a></h1>
+<p><strong>RustyHook</strong> is a blazing-fast, Rust-native Git hook runner designed to be a modern, drop-in replacement for <a href="https://pre-commit.com/"><code>pre-commit</code></a>. It is language-agnostic, monorepo-friendly, and automatically provisions environments for linters and checkers written in Python, Node.js, Ruby, and more.</p>
+<h2 id="features"><a class="header" href="#features">Features</a></h2>
+<ul>
+<li>🚀 <strong>Fast and concurrent</strong> execution powered by Rust</li>
+<li>🧰 <strong>Automatic setup</strong> of Python virtualenvs, Node/npm environments, and Ruby/bundler installs</li>
+<li>🌐 <strong>Language-agnostic</strong> support with consistent hook interface</li>
+<li>🏗️ <strong>Monorepo-first</strong> with per-directory or per-project configurations</li>
+<li>🪝 <strong>Compatibility with <code>.pre-commit-config.yaml</code></strong></li>
+<li>🧙 <strong>Migration tool</strong> to convert pre-commit configs to native <code>.rustyhook/config.yaml</code></li>
+<li>📦 <strong>Cache-aware</strong> tool installs and version pinning</li>
+<li>🆔 CLI alias: <code>rh</code></li>
+</ul>
+<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<pre><code class="language-sh"># Install RustyHook
+cargo install rustyhook
+
+# Initialize a new configuration
+rh init
+
+# Run your hooks
+rh run
+</code></pre>
+<p>For more detailed information, check out the <a href="user-guide/getting-started.html">Getting Started</a> guide.</p>
+<h2 id="documentation-sections"><a class="header" href="#documentation-sections">Documentation Sections</a></h2>
+<ul>
+<li><strong><a href="user-guide/getting-started.html">User Guide</a></strong>: Learn how to install, configure, and use RustyHook</li>
+<li><strong><a href="reference/supported-languages.html">Reference</a></strong>: Detailed reference for supported languages, hook types, and configuration options</li>
+<li><strong><a href="advanced/monorepo.html">Advanced</a></strong>: Advanced topics like monorepo support, custom hooks, and performance tuning</li>
+<li><strong><a href="contributing/development-setup.html">Contributing</a></strong>: Information for developers who want to contribute to RustyHook</li>
+</ul>
+<h2 id="license"><a class="header" href="#license">License</a></h2>
+<p>RustyHook is licensed under the MIT License.</p>
+<h2 id="acknowledgments"><a class="header" href="#acknowledgments">Acknowledgments</a></h2>
+<ul>
+<li>Inspired by <code>pre-commit</code>, <code>lefthook</code>, <code>moonrepo</code>, and the Rust community</li>
+<li>Shoutout to contributors and early testers helping shape this project</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="getting-started-with-rustyhook"><a class="header" href="#getting-started-with-rustyhook">Getting Started with RustyHook</a></h1>
+<p>This guide will help you get up and running with RustyHook quickly. We'll cover installation, basic configuration, and running your first hooks.</p>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<p>Before you begin, make sure you have:</p>
+<ul>
+<li>Rust and Cargo installed (if installing via Cargo)</li>
+<li>Git installed and initialized in your project</li>
+<li>Basic familiarity with Git hooks</li>
+</ul>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<p>You can install RustyHook using one of the following methods:</p>
+<h3 id="using-cargo"><a class="header" href="#using-cargo">Using Cargo</a></h3>
+<pre><code class="language-sh">cargo install rustyhook
+</code></pre>
+<h3 id="manual-installation"><a class="header" href="#manual-installation">Manual Installation</a></h3>
+<p>Clone the repository and build from source:</p>
+<pre><code class="language-sh">git clone https://github.com/your-org/rustyhook.git
+cd rustyhook
+cargo build --release
+</code></pre>
+<p>The binary will be available at <code>./target/release/rustyhook</code>.</p>
+<h3 id="verifying-installation"><a class="header" href="#verifying-installation">Verifying Installation</a></h3>
+<p>To verify that RustyHook is installed correctly, run:</p>
+<pre><code class="language-sh">rustyhook --version
+# or using the alias
+rh --version
+</code></pre>
+<h2 id="creating-your-first-configuration"><a class="header" href="#creating-your-first-configuration">Creating Your First Configuration</a></h2>
+<p>RustyHook uses a YAML configuration file to define your hooks. You can create a new configuration file using the <code>init</code> command:</p>
+<pre><code class="language-sh">rh init
+</code></pre>
+<p>This will create a <code>.rustyhook/config.yaml</code> file in your project root with some example hooks.</p>
+<h2 id="basic-configuration-example"><a class="header" href="#basic-configuration-example">Basic Configuration Example</a></h2>
+<p>Here's a simple configuration example:</p>
+<pre><code class="language-yaml">hooks:
+  - id: ruff
+    language: python
+    version: "==0.4.0"
+    entry: "ruff check"
+    files: "\\.py$"
+
+  - id: biome
+    language: node
+    version: "^1.6.2"
+    entry: "biome lint"
+    files: "\\.(ts|js|json)$"
+</code></pre>
+<h2 id="running-hooks"><a class="header" href="#running-hooks">Running Hooks</a></h2>
+<p>To run all configured hooks:</p>
+<pre><code class="language-sh">rh run
+</code></pre>
+<p>To run specific hooks:</p>
+<pre><code class="language-sh">rh run --hook ruff
+</code></pre>
+<h2 id="setting-up-git-hooks"><a class="header" href="#setting-up-git-hooks">Setting Up Git Hooks</a></h2>
+<p>To set up RustyHook as a Git pre-commit hook:</p>
+<pre><code class="language-sh">rh install
+</code></pre>
+<p>This will create a Git hook that runs RustyHook before each commit.</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
+<p>Now that you have RustyHook set up, you might want to:</p>
+<ul>
+<li>Learn more about <a href="user-guide/cli-usage.html">CLI Usage</a></li>
+<li>Explore <a href="user-guide/configuration.html">Configuration</a> options</li>
+<li>Set up <a href="user-guide/shell-completions.html">Shell Completions</a></li>
+<li>If you're migrating from pre-commit, check out the <a href="user-guide/migration.html">Migration Guide</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="installation-1"><a class="header" href="#installation-1">Installation</a></h1>
+<p>This guide provides detailed instructions for installing RustyHook on different platforms.</p>
+<h2 id="prerequisites-1"><a class="header" href="#prerequisites-1">Prerequisites</a></h2>
+<ul>
+<li><strong>Rust and Cargo</strong>: Required if installing via Cargo</li>
+<li><strong>Git</strong>: Required for version control integration</li>
+</ul>
+<h2 id="installation-methods"><a class="header" href="#installation-methods">Installation Methods</a></h2>
+<h3 id="using-cargo-recommended"><a class="header" href="#using-cargo-recommended">Using Cargo (Recommended)</a></h3>
+<p>The simplest way to install RustyHook is using Cargo, Rust's package manager:</p>
+<pre><code class="language-sh">cargo install rustyhook
+</code></pre>
+<p>This will download, compile, and install the latest version of RustyHook.</p>
+<h3 id="using-package-managers"><a class="header" href="#using-package-managers">Using Package Managers</a></h3>
+<h4 id="homebrew-macos-and-linux"><a class="header" href="#homebrew-macos-and-linux">Homebrew (macOS and Linux)</a></h4>
+<pre><code class="language-sh">brew install rustyhook
+</code></pre>
+<h4 id="chocolatey-windows"><a class="header" href="#chocolatey-windows">Chocolatey (Windows)</a></h4>
+<pre><code class="language-sh">choco install rustyhook
+</code></pre>
+<h4 id="scoop-windows"><a class="header" href="#scoop-windows">Scoop (Windows)</a></h4>
+<pre><code class="language-sh">scoop install rustyhook
+</code></pre>
+<h3 id="manual-installation-1"><a class="header" href="#manual-installation-1">Manual Installation</a></h3>
+<p>If you prefer to build from source:</p>
+<ol>
+<li>
+<p>Clone the repository:</p>
+<pre><code class="language-sh">git clone https://github.com/your-org/rustyhook.git
+</code></pre>
+</li>
+<li>
+<p>Navigate to the directory:</p>
+<pre><code class="language-sh">cd rustyhook
+</code></pre>
+</li>
+<li>
+<p>Build the project:</p>
+<pre><code class="language-sh">cargo build --release
+</code></pre>
+</li>
+<li>
+<p>The binary will be available at <code>./target/release/rustyhook</code></p>
+</li>
+<li>
+<p>(Optional) Add to your PATH:</p>
+<pre><code class="language-sh"># On Unix-like systems
+cp ./target/release/rustyhook /usr/local/bin/
+
+# On Windows, move to a directory in your PATH or add the release directory to your PATH
+</code></pre>
+</li>
+</ol>
+<h2 id="verifying-installation-1"><a class="header" href="#verifying-installation-1">Verifying Installation</a></h2>
+<p>To verify that RustyHook is installed correctly:</p>
+<pre><code class="language-sh">rustyhook --version
+# or using the alias
+rh --version
+</code></pre>
+<h2 id="updating-rustyhook"><a class="header" href="#updating-rustyhook">Updating RustyHook</a></h2>
+<p>To update to the latest version:</p>
+<pre><code class="language-sh">cargo install rustyhook --force
+</code></pre>
+<h2 id="uninstalling"><a class="header" href="#uninstalling">Uninstalling</a></h2>
+<p>To uninstall RustyHook:</p>
+<pre><code class="language-sh">cargo uninstall rustyhook
+</code></pre>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<h3 id="common-issues"><a class="header" href="#common-issues">Common Issues</a></h3>
+<ul>
+<li><strong>Command not found</strong>: Ensure the installation directory is in your PATH</li>
+<li><strong>Permission denied</strong>: You may need to use <code>sudo</code> on Unix-like systems</li>
+<li><strong>Compilation errors</strong>: Make sure you have the latest version of Rust and Cargo</li>
+</ul>
+<h3 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h3>
+<p>If you encounter any issues during installation, please:</p>
+<ol>
+<li>Check the <a href="user-guide/../faq.html">FAQ</a> for common problems</li>
+<li>Search for existing issues on the <a href="https://github.com/your-org/rustyhook/issues">GitHub repository</a></li>
+<li>Open a new issue if your problem hasn't been reported</li>
+</ol>
+<h2 id="next-steps-1"><a class="header" href="#next-steps-1">Next Steps</a></h2>
+<p>After installation, you might want to:</p>
+<ul>
+<li><a href="user-guide/getting-started.html">Get started</a> with RustyHook</li>
+<li>Learn about <a href="user-guide/cli-usage.html">CLI usage</a></li>
+<li>Set up <a href="user-guide/shell-completions.html">shell completions</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="cli-usage"><a class="header" href="#cli-usage">CLI Usage</a></h1>
+<p>RustyHook provides a powerful command-line interface (CLI) for managing and running Git hooks. This guide covers all available commands and their options.</p>
+<h2 id="command-overview"><a class="header" href="#command-overview">Command Overview</a></h2>
+<p>RustyHook can be invoked using either <code>rustyhook</code> or the shorter alias <code>rh</code>. Both commands provide identical functionality.</p>
+<pre><code class="language-sh"># These are equivalent
+rustyhook [command] [options]
+rh [command] [options]
+</code></pre>
+<h2 id="available-commands"><a class="header" href="#available-commands">Available Commands</a></h2>
+<h3 id="run"><a class="header" href="#run"><code>run</code></a></h3>
+<p>Run hooks based on your configuration.</p>
+<pre><code class="language-sh">rh run [options]
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>--hook &lt;HOOK_ID&gt;</code>: Run only the specified hook</li>
+<li><code>--all-files</code>: Run on all files, not just changed ones</li>
+<li><code>--files &lt;FILES&gt;</code>: Run on specific files (comma-separated)</li>
+<li><code>--verbose</code>: Show detailed output</li>
+<li><code>--no-cache</code>: Skip using cached environments</li>
+</ul>
+<p>Examples:</p>
+<pre><code class="language-sh"># Run all hooks on changed files
+rh run
+
+# Run only the 'ruff' hook
+rh run --hook ruff
+
+# Run all hooks on all files
+rh run --all-files
+
+# Run hooks on specific files
+rh run --files src/main.rs,src/lib.rs
+</code></pre>
+<h3 id="compat"><a class="header" href="#compat"><code>compat</code></a></h3>
+<p>Run hooks using a <code>.pre-commit-config.yaml</code> file for compatibility with pre-commit.</p>
+<pre><code class="language-sh">rh compat [options]
+</code></pre>
+<p>Options:</p>
+<ul>
+<li>Same as <code>run</code> command</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh"># Run pre-commit compatible hooks
+rh compat
+</code></pre>
+<h3 id="convert"><a class="header" href="#convert"><code>convert</code></a></h3>
+<p>Convert a pre-commit configuration to RustyHook's native format.</p>
+<pre><code class="language-sh">rh convert [options]
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>--from-precommit</code>: Convert from <code>.pre-commit-config.yaml</code></li>
+<li><code>--output &lt;FILE&gt;</code>: Output file (default: stdout)</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh"># Convert pre-commit config to RustyHook config
+rh convert --from-precommit &gt; .rustyhook/config.yaml
+</code></pre>
+<h3 id="init"><a class="header" href="#init"><code>init</code></a></h3>
+<p>Initialize a new RustyHook configuration.</p>
+<pre><code class="language-sh">rh init [options]
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>--force</code>: Overwrite existing configuration</li>
+<li><code>--template &lt;TEMPLATE&gt;</code>: Use a specific template (basic, full, minimal)</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh"># Create a new configuration
+rh init
+
+# Create a new configuration with the full template
+rh init --template full
+</code></pre>
+<h3 id="list"><a class="header" href="#list"><code>list</code></a></h3>
+<p>List all configured hooks.</p>
+<pre><code class="language-sh">rh list [options]
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>--verbose</code>: Show detailed information</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh"># List all hooks
+rh list
+</code></pre>
+<h3 id="doctor"><a class="header" href="#doctor"><code>doctor</code></a></h3>
+<p>Diagnose and fix issues with your RustyHook setup.</p>
+<pre><code class="language-sh">rh doctor [options]
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>--fix</code>: Attempt to fix issues automatically</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh"># Check for issues
+rh doctor
+
+# Check and fix issues
+rh doctor --fix
+</code></pre>
+<h3 id="clean"><a class="header" href="#clean"><code>clean</code></a></h3>
+<p>Clean cached environments and tools.</p>
+<pre><code class="language-sh">rh clean [options]
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>--all</code>: Remove all cached data</li>
+<li><code>--language &lt;LANGUAGE&gt;</code>: Clean only specific language environments</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh"># Clean all caches
+rh clean --all
+
+# Clean only Python environments
+rh clean --language python
+</code></pre>
+<h3 id="completions"><a class="header" href="#completions"><code>completions</code></a></h3>
+<p>Generate shell completion scripts.</p>
+<pre><code class="language-sh">rh completions &lt;SHELL&gt;
+</code></pre>
+<p>Arguments:</p>
+<ul>
+<li><code>SHELL</code>: The shell to generate completions for (bash, zsh, fish, powershell)</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh"># Generate Bash completions
+rh completions bash &gt; ~/.bash_completion.d/rustyhook
+</code></pre>
+<h3 id="install"><a class="header" href="#install"><code>install</code></a></h3>
+<p>Install RustyHook as a Git hook.</p>
+<pre><code class="language-sh">rh install [options]
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>--hook-type &lt;TYPE&gt;</code>: Hook type to install (pre-commit, pre-push, etc.)</li>
+<li><code>--force</code>: Overwrite existing hooks</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh"># Install as pre-commit hook
+rh install --hook-type pre-commit
+</code></pre>
+<h3 id="uninstall"><a class="header" href="#uninstall"><code>uninstall</code></a></h3>
+<p>Remove RustyHook Git hooks.</p>
+<pre><code class="language-sh">rh uninstall [options]
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>--hook-type &lt;TYPE&gt;</code>: Hook type to uninstall (pre-commit, pre-push, etc.)</li>
+<li><code>--all</code>: Uninstall all hook types</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-sh"># Uninstall all hooks
+rh uninstall --all
+</code></pre>
+<h2 id="global-options"><a class="header" href="#global-options">Global Options</a></h2>
+<p>These options can be used with any command:</p>
+<ul>
+<li><code>--help</code>: Show help information</li>
+<li><code>--version</code>: Show version information</li>
+<li><code>--config &lt;FILE&gt;</code>: Use a specific configuration file</li>
+<li><code>--no-color</code>: Disable colored output</li>
+<li><code>--quiet</code>: Suppress all output except errors</li>
+</ul>
+<h2 id="environment-variables"><a class="header" href="#environment-variables">Environment Variables</a></h2>
+<p>RustyHook respects the following environment variables:</p>
+<ul>
+<li><code>RUSTYHOOK_CONFIG</code>: Path to configuration file</li>
+<li><code>RUSTYHOOK_CACHE_DIR</code>: Directory for cached environments</li>
+<li><code>RUSTYHOOK_LOG_LEVEL</code>: Log level (debug, info, warn, error)</li>
+<li><code>RUSTYHOOK_NO_COLOR</code>: Disable colored output if set to any value</li>
+</ul>
+<h2 id="exit-codes"><a class="header" href="#exit-codes">Exit Codes</a></h2>
+<ul>
+<li><code>0</code>: Success</li>
+<li><code>1</code>: Hook failure</li>
+<li><code>2</code>: Configuration error</li>
+<li><code>3</code>: System error</li>
+<li><code>4</code>: User error</li>
+</ul>
+<h2 id="next-steps-2"><a class="header" href="#next-steps-2">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="user-guide/configuration.html">Configuration</a> options</li>
+<li>Set up <a href="user-guide/shell-completions.html">Shell Completions</a></li>
+<li>Explore <a href="user-guide/../reference/supported-languages.html">Supported Languages</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>RustyHook uses a YAML-based configuration file to define hooks and their behavior. This guide explains how to configure RustyHook for your project.</p>
+<h2 id="configuration-file-location"><a class="header" href="#configuration-file-location">Configuration File Location</a></h2>
+<p>By default, RustyHook looks for configuration in the following locations (in order of precedence):</p>
+<ol>
+<li>Path specified by <code>--config</code> command-line option</li>
+<li>Path specified by <code>RUSTYHOOK_CONFIG</code> environment variable</li>
+<li><code>.rustyhook/config.yaml</code> in the current directory</li>
+<li><code>.rustyhook/config.yml</code> in the current directory</li>
+<li><code>.pre-commit-config.yaml</code> (compatibility mode)</li>
+</ol>
+<h2 id="basic-configuration-structure"><a class="header" href="#basic-configuration-structure">Basic Configuration Structure</a></h2>
+<p>A basic RustyHook configuration file looks like this:</p>
+<pre><code class="language-yaml"># .rustyhook/config.yaml
+hooks:
+  - id: ruff
+    language: python
+    version: "==0.4.0"
+    entry: "ruff check"
+    files: "\\.py$"
+
+  - id: biome
+    language: node
+    version: "^1.6.2"
+    entry: "biome lint"
+    files: "\\.(ts|js|json)$"
+</code></pre>
+<h2 id="hook-configuration-options"><a class="header" href="#hook-configuration-options">Hook Configuration Options</a></h2>
+<p>Each hook in the <code>hooks</code> array can have the following properties:</p>
+<div class="table-wrapper"><table><thead><tr><th>Property</th><th>Required</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>id</code></td><td>Yes</td><td>Unique identifier for the hook</td></tr>
+<tr><td><code>language</code></td><td>Yes</td><td>Language runtime (python, node, ruby, system)</td></tr>
+<tr><td><code>entry</code></td><td>Yes</td><td>Command to execute</td></tr>
+<tr><td><code>files</code></td><td>No</td><td>Regex pattern for files to include</td></tr>
+<tr><td><code>exclude</code></td><td>No</td><td>Regex pattern for files to exclude</td></tr>
+<tr><td><code>args</code></td><td>No</td><td>Additional arguments to pass to the command</td></tr>
+<tr><td><code>version</code></td><td>No</td><td>Version requirement for the tool</td></tr>
+<tr><td><code>pass_filenames</code></td><td>No</td><td>Whether to pass filenames to the command (default: true)</td></tr>
+<tr><td><code>always_run</code></td><td>No</td><td>Run even when no matching files are changed (default: false)</td></tr>
+<tr><td><code>verbose</code></td><td>No</td><td>Show verbose output for this hook (default: false)</td></tr>
+<tr><td><code>stages</code></td><td>No</td><td>Git stages to run on (pre-commit, pre-push, etc.)</td></tr>
+<tr><td><code>fail_fast</code></td><td>No</td><td>Stop execution on first failure (default: false)</td></tr>
+<tr><td><code>env</code></td><td>No</td><td>Environment variables to set</td></tr>
+<tr><td><code>working_dir</code></td><td>No</td><td>Directory to run the hook in</td></tr>
+</tbody></table>
+</div>
+<h2 id="language-specific-configuration"><a class="header" href="#language-specific-configuration">Language-Specific Configuration</a></h2>
+<h3 id="python"><a class="header" href="#python">Python</a></h3>
+<pre><code class="language-yaml">hooks:
+  - id: ruff
+    language: python
+    version: "==0.4.0"  # Pinned version
+    entry: "ruff check"
+    files: "\\.py$"
+    args: ["--fix"]
+</code></pre>
+<p>Python hooks use virtualenv to create isolated environments. The <code>version</code> field specifies the package version to install with pip.</p>
+<h3 id="nodejs"><a class="header" href="#nodejs">Node.js</a></h3>
+<pre><code class="language-yaml">hooks:
+  - id: eslint
+    language: node
+    version: "^8.0.0"  # Semver compatible version
+    entry: "eslint"
+    files: "\\.(js|jsx|ts|tsx)$"
+    args: ["--fix"]
+</code></pre>
+<p>Node hooks use npm to install packages. The <code>version</code> field specifies the package version to install with npm.</p>
+<h3 id="ruby"><a class="header" href="#ruby">Ruby</a></h3>
+<pre><code class="language-yaml">hooks:
+  - id: rubocop
+    language: ruby
+    version: "~&gt; 1.0"  # Compatible version
+    entry: "rubocop"
+    files: "\\.(rb)$"
+    args: ["--auto-correct"]
+</code></pre>
+<p>Ruby hooks use bundler to install gems. The <code>version</code> field specifies the gem version to install with bundler.</p>
+<h3 id="system"><a class="header" href="#system">System</a></h3>
+<pre><code class="language-yaml">hooks:
+  - id: shellcheck
+    language: system
+    entry: "shellcheck"
+    files: "\\.(sh)$"
+</code></pre>
+<p>System hooks use commands available on the system PATH. No environment setup is performed.</p>
+<h2 id="advanced-configuration"><a class="header" href="#advanced-configuration">Advanced Configuration</a></h2>
+<h3 id="global-settings"><a class="header" href="#global-settings">Global Settings</a></h3>
+<p>You can specify global settings that apply to all hooks:</p>
+<pre><code class="language-yaml">default_stages: [pre-commit, pre-push]
+fail_fast: true
+exclude: "^vendor/"
+
+hooks:
+  # Hook definitions...
+</code></pre>
+<h3 id="environment-variables-1"><a class="header" href="#environment-variables-1">Environment Variables</a></h3>
+<p>You can set environment variables for hooks:</p>
+<pre><code class="language-yaml">hooks:
+  - id: my-hook
+    language: system
+    entry: "./my-script.sh"
+    env:
+      DEBUG: "true"
+      NODE_ENV: "development"
+</code></pre>
+<h3 id="working-directory"><a class="header" href="#working-directory">Working Directory</a></h3>
+<p>You can specify a working directory for hooks:</p>
+<pre><code class="language-yaml">hooks:
+  - id: frontend-lint
+    language: node
+    entry: "eslint"
+    files: "\\.(js|jsx)$"
+    working_dir: "./frontend"
+</code></pre>
+<h3 id="multiple-configurations"><a class="header" href="#multiple-configurations">Multiple Configurations</a></h3>
+<p>For monorepos, you can have multiple configuration files in different directories. RustyHook will use the closest configuration file to the Git root.</p>
+<h2 id="configuration-templates"><a class="header" href="#configuration-templates">Configuration Templates</a></h2>
+<p>RustyHook provides templates to help you get started:</p>
+<pre><code class="language-sh"># Create a basic configuration
+rh init
+
+# Create a configuration with more examples
+rh init --template full
+</code></pre>
+<h2 id="migrating-from-pre-commit"><a class="header" href="#migrating-from-pre-commit">Migrating from pre-commit</a></h2>
+<p>If you're migrating from pre-commit, you can convert your existing configuration:</p>
+<pre><code class="language-sh">rh convert --from-precommit &gt; .rustyhook/config.yaml
+</code></pre>
+<h2 id="next-steps-3"><a class="header" href="#next-steps-3">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="user-guide/cli-usage.html">CLI Usage</a></li>
+<li>Explore <a href="user-guide/../reference/supported-languages.html">Supported Languages</a></li>
+<li>Set up <a href="user-guide/shell-completions.html">Shell Completions</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="migration-from-pre-commit"><a class="header" href="#migration-from-pre-commit">Migration from pre-commit</a></h1>
+<p>RustyHook is designed to be a drop-in replacement for <a href="https://pre-commit.com/">pre-commit</a>, making migration as seamless as possible. This guide will help you transition from pre-commit to RustyHook.</p>
+<h2 id="compatibility-mode"><a class="header" href="#compatibility-mode">Compatibility Mode</a></h2>
+<p>The easiest way to start using RustyHook is with compatibility mode, which allows RustyHook to use your existing <code>.pre-commit-config.yaml</code> file without any changes:</p>
+<pre><code class="language-sh"># Run hooks using your existing pre-commit configuration
+rh compat
+</code></pre>
+<p>This command will:</p>
+<ol>
+<li>Read your <code>.pre-commit-config.yaml</code> file</li>
+<li>Set up the necessary environments</li>
+<li>Run the hooks as defined in your pre-commit configuration</li>
+</ol>
+<h2 id="converting-your-configuration"><a class="header" href="#converting-your-configuration">Converting Your Configuration</a></h2>
+<p>While compatibility mode works well, you'll get the best performance and features by converting to RustyHook's native configuration format:</p>
+<pre><code class="language-sh"># Convert pre-commit config to RustyHook config
+rh convert --from-precommit &gt; .rustyhook/config.yaml
+</code></pre>
+<p>This will create a new <code>.rustyhook/config.yaml</code> file based on your existing pre-commit configuration.</p>
+<h2 id="configuration-differences"><a class="header" href="#configuration-differences">Configuration Differences</a></h2>
+<p>Here's how pre-commit and RustyHook configurations compare:</p>
+<h3 id="pre-commit-configuration"><a class="header" href="#pre-commit-configuration">pre-commit Configuration</a></h3>
+<pre><code class="language-yaml"># .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: 'v0.0.262'
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.38.0
+    hooks:
+      - id: eslint
+        files: \.(js|jsx|ts|tsx)$
+        types: [file]
+        additional_dependencies:
+          - eslint@8.38.0
+          - eslint-config-standard@17.0.0
+</code></pre>
+<h3 id="equivalent-rustyhook-configuration"><a class="header" href="#equivalent-rustyhook-configuration">Equivalent RustyHook Configuration</a></h3>
+<pre><code class="language-yaml"># .rustyhook/config.yaml
+hooks:
+  - id: ruff
+    language: python
+    version: "==0.0.262"
+    entry: "ruff"
+    args: ["--fix"]
+    files: "\\.py$"
+
+  - id: eslint
+    language: node
+    version: "^8.38.0"
+    entry: "eslint"
+    files: "\\.(js|jsx|ts|tsx)$"
+    args: []
+    dependencies:
+      - "eslint-config-standard@17.0.0"
+</code></pre>
+<h2 id="key-differences"><a class="header" href="#key-differences">Key Differences</a></h2>
+<ol>
+<li>
+<p><strong>Repository References</strong>: RustyHook doesn't use the <code>repos</code> structure. Instead, it directly defines hooks with their language and version.</p>
+</li>
+<li>
+<p><strong>Version Specification</strong>:</p>
+<ul>
+<li>pre-commit uses Git revisions (<code>rev</code>)</li>
+<li>RustyHook uses package version specifiers (<code>version</code>)</li>
+</ul>
+</li>
+<li>
+<p><strong>Dependencies</strong>:</p>
+<ul>
+<li>pre-commit uses <code>additional_dependencies</code></li>
+<li>RustyHook uses <code>dependencies</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Entry Point</strong>:</p>
+<ul>
+<li>pre-commit infers the entry point from the hook ID</li>
+<li>RustyHook requires an explicit <code>entry</code> field</li>
+</ul>
+</li>
+<li>
+<p><strong>File Patterns</strong>:</p>
+<ul>
+<li>Both use similar regex patterns, but RustyHook always requires the <code>files</code> field if you want to filter by file type</li>
+</ul>
+</li>
+</ol>
+<h2 id="migrating-git-hooks"><a class="header" href="#migrating-git-hooks">Migrating Git Hooks</a></h2>
+<p>If you've installed pre-commit as a Git hook, you'll need to uninstall it and install RustyHook instead:</p>
+<pre><code class="language-sh"># Uninstall pre-commit hooks
+pre-commit uninstall
+
+# Install RustyHook hooks
+rh install
+</code></pre>
+<h2 id="handling-custom-hooks"><a class="header" href="#handling-custom-hooks">Handling Custom Hooks</a></h2>
+<p>If you have custom hooks defined in your pre-commit configuration, you'll need to adapt them for RustyHook:</p>
+<h3 id="pre-commit-custom-hook"><a class="header" href="#pre-commit-custom-hook">pre-commit Custom Hook</a></h3>
+<pre><code class="language-yaml">repos:
+  - repo: local
+    hooks:
+      - id: custom-script
+        name: Custom Script
+        entry: ./scripts/custom.sh
+        language: script
+        files: \.txt$
+</code></pre>
+<h3 id="rustyhook-custom-hook"><a class="header" href="#rustyhook-custom-hook">RustyHook Custom Hook</a></h3>
+<pre><code class="language-yaml">hooks:
+  - id: custom-script
+    language: system
+    entry: "./scripts/custom.sh"
+    files: "\\.txt$"
+</code></pre>
+<h2 id="handling-local-hooks"><a class="header" href="#handling-local-hooks">Handling Local Hooks</a></h2>
+<p>RustyHook treats all hooks as "local" by default. There's no need for a special <code>local</code> repository designation.</p>
+<h2 id="troubleshooting-migration-issues"><a class="header" href="#troubleshooting-migration-issues">Troubleshooting Migration Issues</a></h2>
+<h3 id="common-issues-1"><a class="header" href="#common-issues-1">Common Issues</a></h3>
+<ol>
+<li>
+<p><strong>Missing Dependencies</strong>: If your pre-commit hooks had implicit dependencies, you might need to add them explicitly in RustyHook.</p>
+</li>
+<li>
+<p><strong>Path Differences</strong>: RustyHook executes hooks from the Git root by default. Use <code>working_dir</code> if you need to change this.</p>
+</li>
+<li>
+<p><strong>Hook Execution Order</strong>: RustyHook executes hooks in the order they're defined in the configuration file.</p>
+</li>
+</ol>
+<h3 id="debugging"><a class="header" href="#debugging">Debugging</a></h3>
+<p>If you encounter issues during migration, use the <code>--verbose</code> flag to get more information:</p>
+<pre><code class="language-sh">rh run --verbose
+</code></pre>
+<p>You can also use the <code>doctor</code> command to diagnose issues:</p>
+<pre><code class="language-sh">rh doctor
+</code></pre>
+<h2 id="next-steps-4"><a class="header" href="#next-steps-4">Next Steps</a></h2>
+<p>After migrating to RustyHook, you might want to:</p>
+<ul>
+<li>Explore <a href="user-guide/configuration.html">Configuration</a> options to take advantage of RustyHook-specific features</li>
+<li>Learn about <a href="user-guide/cli-usage.html">CLI Usage</a> to optimize your workflow</li>
+<li>Set up <a href="user-guide/shell-completions.html">Shell Completions</a> for a better command-line experience</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="shell-completions"><a class="header" href="#shell-completions">Shell Completions</a></h1>
+<p>RustyHook provides shell completion scripts for Bash, Zsh, Fish, and PowerShell. This guide explains how to generate and install these completion scripts to enhance your command-line experience.</p>
+<h2 id="generating-completion-scripts"><a class="header" href="#generating-completion-scripts">Generating Completion Scripts</a></h2>
+<p>RustyHook can generate completion scripts for various shells using the <code>completions</code> command:</p>
+<pre><code class="language-sh">rustyhook completions &lt;SHELL&gt;
+</code></pre>
+<p>Replace <code>&lt;SHELL&gt;</code> with one of the following:</p>
+<ul>
+<li><code>bash</code>: For Bash shell</li>
+<li><code>zsh</code>: For Zsh shell</li>
+<li><code>fish</code>: For Fish shell</li>
+<li><code>powershell</code>: For PowerShell</li>
+</ul>
+<h2 id="installing-completion-scripts"><a class="header" href="#installing-completion-scripts">Installing Completion Scripts</a></h2>
+<h3 id="bash"><a class="header" href="#bash">Bash</a></h3>
+<pre><code class="language-sh"># Create completion directory if it doesn't exist
+mkdir -p ~/.bash_completion.d
+
+# Generate and save completion script
+rustyhook completions bash &gt; ~/.bash_completion.d/rustyhook
+
+# For the alias (rh)
+rustyhook completions bash | sed 's/rustyhook/rh/g' &gt; ~/.bash_completion.d/rh
+
+# Source the completion script
+echo 'source ~/.bash_completion.d/rustyhook' &gt;&gt; ~/.bashrc
+echo 'source ~/.bash_completion.d/rh' &gt;&gt; ~/.bashrc
+
+# Apply changes
+source ~/.bashrc
+</code></pre>
+<h3 id="zsh"><a class="header" href="#zsh">Zsh</a></h3>
+<pre><code class="language-sh"># Create completion directory if it doesn't exist
+mkdir -p ~/.zsh/completions
+
+# Generate and save completion script
+rustyhook completions zsh &gt; ~/.zsh/completions/_rustyhook
+
+# For the alias (rh)
+rustyhook completions zsh | sed 's/rustyhook/rh/g' &gt; ~/.zsh/completions/_rh
+
+# Make sure ~/.zsh/completions is in your fpath
+echo 'fpath=(~/.zsh/completions $fpath)' &gt;&gt; ~/.zshrc
+echo 'autoload -U compinit &amp;&amp; compinit' &gt;&gt; ~/.zshrc
+
+# Apply changes
+source ~/.zshrc
+</code></pre>
+<h3 id="fish"><a class="header" href="#fish">Fish</a></h3>
+<pre><code class="language-sh"># Create completion directory if it doesn't exist
+mkdir -p ~/.config/fish/completions
+
+# Generate and save completion script
+rustyhook completions fish &gt; ~/.config/fish/completions/rustyhook.fish
+
+# For the alias (rh)
+rustyhook completions fish | sed 's/rustyhook/rh/g' &gt; ~/.config/fish/completions/rh.fish
+
+# Fish automatically loads completions from this directory
+</code></pre>
+<h3 id="powershell"><a class="header" href="#powershell">PowerShell</a></h3>
+<pre><code class="language-powershell"># Create a directory for the completion script if it doesn't exist
+if (-not (Test-Path -Path "$PROFILE\.." -PathType Container)) {
+    New-Item -Path "$PROFILE\.." -ItemType Directory -Force
+}
+
+# Generate and save completion script
+rustyhook completions powershell &gt; $PROFILE.CurrentUserCurrentHost/rustyhook.ps1
+
+# For the alias (rh)
+rustyhook completions powershell | ForEach-Object { $_ -replace "rustyhook", "rh" } &gt; $PROFILE.CurrentUserCurrentHost/rh.ps1
+
+# Source the completion script
+echo '. $PROFILE.CurrentUserCurrentHost/rustyhook.ps1' &gt;&gt; $PROFILE
+echo '. $PROFILE.CurrentUserCurrentHost/rh.ps1' &gt;&gt; $PROFILE
+
+# Apply changes
+. $PROFILE
+</code></pre>
+<h2 id="verifying-completions"><a class="header" href="#verifying-completions">Verifying Completions</a></h2>
+<p>After installing the completion scripts, you can verify they're working by typing <code>rustyhook</code> or <code>rh</code> followed by a space and pressing the Tab key. You should see available commands and options.</p>
+<h2 id="troubleshooting-1"><a class="header" href="#troubleshooting-1">Troubleshooting</a></h2>
+<h3 id="completions-not-working"><a class="header" href="#completions-not-working">Completions Not Working</a></h3>
+<p>If completions aren't working after installation:</p>
+<ol>
+<li>Make sure you've sourced your shell configuration file (<code>.bashrc</code>, <code>.zshrc</code>, etc.)</li>
+<li>Verify that the completion script was generated correctly</li>
+<li>Check that the completion script is in the correct location</li>
+<li>Ensure your shell is configured to use completions</li>
+</ol>
+<h3 id="bash-completions"><a class="header" href="#bash-completions">Bash Completions</a></h3>
+<p>If Bash completions aren't working:</p>
+<pre><code class="language-sh"># Add this to your .bashrc if it's not already there
+if [ -d ~/.bash_completion.d ]; then
+  for file in ~/.bash_completion.d/*; do
+    . "$file"
+  done
+fi
+</code></pre>
+<h3 id="zsh-completions"><a class="header" href="#zsh-completions">Zsh Completions</a></h3>
+<p>If Zsh completions aren't working:</p>
+<pre><code class="language-sh"># Make sure compinit is loaded
+autoload -Uz compinit &amp;&amp; compinit
+</code></pre>
+<h2 id="next-steps-5"><a class="header" href="#next-steps-5">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="user-guide/cli-usage.html">CLI Usage</a></li>
+<li>Explore <a href="user-guide/configuration.html">Configuration</a> options</li>
+<li>Check out the <a href="user-guide/migration.html">Migration Guide</a> if you're coming from pre-commit</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="supported-languages"><a class="header" href="#supported-languages">Supported Languages</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="hook-types"><a class="header" href="#hook-types">Hook Types</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="configuration-reference"><a class="header" href="#configuration-reference">Configuration Reference</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="monorepo-support"><a class="header" href="#monorepo-support">Monorepo Support</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="custom-hooks"><a class="header" href="#custom-hooks">Custom Hooks</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="performance-tuning"><a class="header" href="#performance-tuning">Performance Tuning</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="development-setup"><a class="header" href="#development-setup">Development Setup</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="architecture"><a class="header" href="#architecture">Architecture</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="frequently-asked-questions"><a class="header" href="#frequently-asked-questions">Frequently Asked Questions</a></h1>
+<h2 id="general-questions"><a class="header" href="#general-questions">General Questions</a></h2>
+<h3 id="what-is-rustyhook"><a class="header" href="#what-is-rustyhook">What is RustyHook?</a></h3>
+<p>RustyHook is a blazing-fast, Rust-native Git hook runner designed to be a modern, drop-in replacement for <code>pre-commit</code>. It is language-agnostic, monorepo-friendly, and automatically provisions environments for linters and checkers written in Python, Node.js, Ruby, and more.</p>
+<h3 id="how-does-rustyhook-compare-to-pre-commit"><a class="header" href="#how-does-rustyhook-compare-to-pre-commit">How does RustyHook compare to pre-commit?</a></h3>
+<p>RustyHook is designed to be a faster, more efficient alternative to pre-commit with these key advantages:</p>
+<ul>
+<li>Written in Rust for better performance</li>
+<li>Concurrent hook execution</li>
+<li>Native support for monorepos</li>
+<li>Automatic environment setup for multiple languages</li>
+<li>Compatible with existing pre-commit configurations</li>
+</ul>
+<h3 id="is-rustyhook-compatible-with-pre-commit-configurations"><a class="header" href="#is-rustyhook-compatible-with-pre-commit-configurations">Is RustyHook compatible with pre-commit configurations?</a></h3>
+<p>Yes! RustyHook can run your existing <code>.pre-commit-config.yaml</code> files using the <code>rh compat</code> command. You can also convert your pre-commit configuration to RustyHook's native format using <code>rh convert</code>.</p>
+<h2 id="installation-and-setup"><a class="header" href="#installation-and-setup">Installation and Setup</a></h2>
+<h3 id="how-do-i-install-rustyhook"><a class="header" href="#how-do-i-install-rustyhook">How do I install RustyHook?</a></h3>
+<p>The easiest way to install RustyHook is using Cargo:</p>
+<pre><code class="language-sh">cargo install rustyhook
+</code></pre>
+<p>For other installation methods, see the <a href="user-guide/installation.html">Installation Guide</a>.</p>
+<h3 id="how-do-i-set-up-rustyhook-in-my-project"><a class="header" href="#how-do-i-set-up-rustyhook-in-my-project">How do I set up RustyHook in my project?</a></h3>
+<p>To set up RustyHook in your project:</p>
+<ol>
+<li>Install RustyHook</li>
+<li>Initialize a configuration file:
+<pre><code class="language-sh">rh init
+</code></pre>
+</li>
+<li>Edit the <code>.rustyhook/config.yaml</code> file to configure your hooks</li>
+<li>Install the Git hooks:
+<pre><code class="language-sh">rh install
+</code></pre>
+</li>
+</ol>
+<h3 id="can-i-use-rustyhook-with-cicd-systems"><a class="header" href="#can-i-use-rustyhook-with-cicd-systems">Can I use RustyHook with CI/CD systems?</a></h3>
+<p>Yes, RustyHook works well in CI/CD environments. You can run hooks using:</p>
+<pre><code class="language-sh">rh run --all-files
+</code></pre>
+<p>This will run all hooks on all files, not just changed ones.</p>
+<h2 id="configuration-1"><a class="header" href="#configuration-1">Configuration</a></h2>
+<h3 id="how-do-i-configure-rustyhook"><a class="header" href="#how-do-i-configure-rustyhook">How do I configure RustyHook?</a></h3>
+<p>RustyHook uses a YAML configuration file located at <code>.rustyhook/config.yaml</code>. See the <a href="user-guide/configuration.html">Configuration Guide</a> for details.</p>
+<h3 id="can-i-use-rustyhook-in-a-monorepo"><a class="header" href="#can-i-use-rustyhook-in-a-monorepo">Can I use RustyHook in a monorepo?</a></h3>
+<p>Yes, RustyHook is designed with monorepos in mind. You can have multiple configuration files in different directories, and RustyHook will use the closest configuration file to the Git root.</p>
+<h3 id="how-do-i-add-a-new-hook"><a class="header" href="#how-do-i-add-a-new-hook">How do I add a new hook?</a></h3>
+<p>To add a new hook, edit your <code>.rustyhook/config.yaml</code> file and add a new entry to the <code>hooks</code> array:</p>
+<pre><code class="language-yaml">hooks:
+  - id: my-new-hook
+    language: python
+    version: "==1.0.0"
+    entry: "my-hook-command"
+    files: "\\.py$"
+</code></pre>
+<h2 id="troubleshooting-2"><a class="header" href="#troubleshooting-2">Troubleshooting</a></h2>
+<h3 id="my-hooks-arent-running-what-should-i-check"><a class="header" href="#my-hooks-arent-running-what-should-i-check">My hooks aren't running. What should I check?</a></h3>
+<ol>
+<li>Make sure RustyHook is installed correctly (<code>rh --version</code>)</li>
+<li>Check that your configuration file is valid (<code>rh doctor</code>)</li>
+<li>Verify that Git hooks are installed (<code>ls -la .git/hooks</code>)</li>
+<li>Run hooks manually to see any errors (<code>rh run --verbose</code>)</li>
+</ol>
+<h3 id="how-do-i-debug-hook-failures"><a class="header" href="#how-do-i-debug-hook-failures">How do I debug hook failures?</a></h3>
+<p>Use the <code>--verbose</code> flag to get more detailed output:</p>
+<pre><code class="language-sh">rh run --verbose
+</code></pre>
+<p>You can also use the <code>doctor</code> command to diagnose issues:</p>
+<pre><code class="language-sh">rh doctor
+</code></pre>
+<h3 id="how-do-i-clean-up-cached-environments"><a class="header" href="#how-do-i-clean-up-cached-environments">How do I clean up cached environments?</a></h3>
+<p>To clean up cached environments:</p>
+<pre><code class="language-sh">rh clean --all
+</code></pre>
+<p>Or to clean only specific language environments:</p>
+<pre><code class="language-sh">rh clean --language python
+</code></pre>
+<h2 id="advanced-usage"><a class="header" href="#advanced-usage">Advanced Usage</a></h2>
+<h3 id="can-i-run-hooks-on-specific-files"><a class="header" href="#can-i-run-hooks-on-specific-files">Can I run hooks on specific files?</a></h3>
+<p>Yes, you can run hooks on specific files:</p>
+<pre><code class="language-sh">rh run --files src/main.rs,src/lib.rs
+</code></pre>
+<h3 id="how-do-i-skip-hooks-for-a-specific-commit"><a class="header" href="#how-do-i-skip-hooks-for-a-specific-commit">How do I skip hooks for a specific commit?</a></h3>
+<p>To skip hooks for a specific commit:</p>
+<pre><code class="language-sh">git commit --no-verify
+</code></pre>
+<p>Or with the <code>-n</code> shorthand:</p>
+<pre><code class="language-sh">git commit -n
+</code></pre>
+<h3 id="can-i-use-rustyhook-with-hooks-other-than-pre-commit"><a class="header" href="#can-i-use-rustyhook-with-hooks-other-than-pre-commit">Can I use RustyHook with hooks other than pre-commit?</a></h3>
+<p>Yes, RustyHook supports various Git hooks:</p>
+<pre><code class="language-sh">rh install --hook-type pre-push
+</code></pre>
+<h2 id="contributing"><a class="header" href="#contributing">Contributing</a></h2>
+<h3 id="how-can-i-contribute-to-rustyhook"><a class="header" href="#how-can-i-contribute-to-rustyhook">How can I contribute to RustyHook?</a></h3>
+<p>We welcome contributions! See the <a href="contributing/development-setup.html">Contributing Guide</a> for details on how to get started.</p>
+<h3 id="where-can-i-report-bugs-or-request-features"><a class="header" href="#where-can-i-report-bugs-or-request-features">Where can I report bugs or request features?</a></h3>
+<p>You can report bugs or request features on the <a href="https://github.com/your-org/rustyhook/issues">GitHub issue tracker</a>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="theme/custom.js"></script>
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+    </div>
+    </body>
+</html>

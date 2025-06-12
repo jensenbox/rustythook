@@ -1,0 +1,124 @@
+/* RustyHook Documentation Custom Styling */
+
+:root {
+    --sidebar-width: 300px;
+    --page-padding: 15px;
+    --content-max-width: 750px;
+    --menu-bar-height: 50px;
+    --rustyhook-primary: #d35400;
+    --rustyhook-secondary: #e67e22;
+    --rustyhook-accent: #f39c12;
+}
+
+/* Custom header styling */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--rustyhook-primary);
+    font-weight: 600;
+}
+
+h1 {
+    border-bottom: 2px solid var(--rustyhook-accent);
+    padding-bottom: 0.3em;
+}
+
+/* Custom link styling */
+a {
+    color: var(--rustyhook-secondary);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--rustyhook-primary);
+    text-decoration: underline;
+}
+
+/* Code blocks */
+pre {
+    background-color: #f8f8f8;
+    border-left: 3px solid var(--rustyhook-accent);
+}
+
+code {
+    font-family: 'Source Code Pro', Consolas, 'Ubuntu Mono', Menlo, 'DejaVu Sans Mono', monospace;
+}
+
+/* Sidebar customization */
+.sidebar {
+    background-color: #f8f8f8;
+}
+
+.sidebar h2 {
+    color: var(--rustyhook-primary);
+}
+
+/* Table styling */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+
+table th {
+    background-color: #f0f0f0;
+    border-bottom: 2px solid var(--rustyhook-accent);
+    padding: 8px;
+    text-align: left;
+}
+
+table td {
+    border-bottom: 1px solid #ddd;
+    padding: 8px;
+}
+
+table tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Blockquote styling */
+blockquote {
+    border-left: 4px solid var(--rustyhook-accent);
+    padding-left: 1em;
+    margin-left: 0;
+    color: #555;
+}
+
+/* Custom note boxes */
+.note {
+    background-color: #f8f8f8;
+    border-left: 4px solid var(--rustyhook-secondary);
+    padding: 10px 15px;
+    margin: 20px 0;
+    border-radius: 3px;
+}
+
+.warning {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 10px 15px;
+    margin: 20px 0;
+    border-radius: 3px;
+}
+
+.tip {
+    background-color: #d4edda;
+    border-left: 4px solid #28a745;
+    padding: 10px 15px;
+    margin: 20px 0;
+    border-radius: 3px;
+}
+
+/* Print styles */
+@media print {
+    .sidebar, .menu-bar, #sidebar-toggle {
+        display: none;
+    }
+
+    .page {
+        margin: 0;
+        padding: 0;
+    }
+
+    pre {
+        white-space: pre-wrap;
+    }
+}
