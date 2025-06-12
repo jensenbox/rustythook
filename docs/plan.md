@@ -25,6 +25,7 @@ Tasks:
 - [x] Use the instructions found at docs/ruby.md to replace the current process of installing Ruby. Pay special attention to all the tasks and requirements.
 - [x] Take the best ideas from the pre-commit and lefthook projects and integrate them into rustyhook.
 - [x] ensure all tasks can operate in parallel
+- [ ] There is no need for any form of conditional checks when reading the compat repositories. You can instead look at the .pre-commit-hooks.yaml file in the root of each repository and parse it to tell you how to execute the hooks.
 - [ ] We will need some sort of mutex system to ensure that the hooks are not running at the same time on the same file. Perhaps what might work better is to mark the hooks as readers or readers and writers to allow for all readers to execute first and in parallel but the reader/writers can only execute in parallel as long as their file globs do not overlap.
 - [ ] implement an "explain" command that can be used to explain the current configuration and any errors that may have occurred. Perhaps the existing doctor command can be used instead?
 - [ ] use uv to start all python hooks in a separate process
@@ -41,7 +42,11 @@ Tasks:
 - [ ] Add code coverage to the project and emit statistics on the coverage of the tests. Ideally the output should be in a format that can be used by codecov.io
 - [ ] Break up the hook tests into individual files per hook test - this should help adding more as it will keep things very tidy upon changes.
 - [ ] Enable each hook to be self-documenting. A given hook should know about all its options and how to set them. It will be useful to know these when crafting a configuration file. Ideally the documentation generator can use these values to auto-generate the documentation.
-- [ ] From the pre-commit repository https://github.com/pre-commit/pre-commit-hooks please implement the following hooks:
+- [ ] The system python interpreter should never be used. It should always be downloaded and installed locally. Currently the "doctor" command is looking for the system interpreter.
+- [ ] The "convert_to_rustyhook_config" function should be able to convert a pre-commit configuration file into a rustyhook configuration file - currently there is a lot of conditional logic that is required to do this. We should instead read the repository and generate the configuration file from the repository after determining the type of environment required. I do not want to see any repository name comparison logic.
+- [ ] Hooks should be able to indicate if they are ReadOnly or ReadWrite. This will allow us to determine if we should run the hook in parallel or not. They should be able to be queried after initialization as hooks can have parameters passed such as "dry run" which would make a normally ReadWrite hook ReadOnly.
+- [ ] We need a command that will get all the pre-run tasks ready. This would be similar to run in that it would get all the tasks ready to run such as setting up their environments but not run the hooks. Perhaps it can be a flag to the run command.
+- [ ] From the pre-commit repository https://github.com/pre-commit/pre-commit-hooks please implement the following hooks as "internal" hooks:
   - [ ] check-added-large-files
   - [ ] check-ast
   - [ ] check-builtin-literals

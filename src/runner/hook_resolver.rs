@@ -29,6 +29,13 @@ pub enum HookResolverError {
     ProcessError(String),
     /// IO error
     IoError(std::io::Error),
+    /// File not found error with path information
+    FileNotFound {
+        /// The path that was not found
+        path: std::path::PathBuf,
+        /// Additional context about the error
+        context: String,
+    },
 }
 
 impl From<FileMatcherError> for HookResolverError {
@@ -52,6 +59,44 @@ impl From<HookError> for HookResolverError {
 impl From<std::io::Error> for HookResolverError {
     fn from(err: std::io::Error) -> Self {
         HookResolverError::IoError(err)
+    }
+}
+
+impl std::fmt::Display for HookResolverError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HookResolverError::FileMatcherError(err) => write!(f, "ERROR: File matching error.\n\nDetails: {:?}\n\nSOLUTION: Check the file pattern in your configuration and ensure it's a valid regex pattern.", err),
+            HookResolverError::ToolError(err) => write!(f, "ERROR: Tool setup or execution failed.\n\nDetails: {:?}\n\nSOLUTION: Ensure the required tools are installed and properly configured. Run 'rustyhook doctor' for diagnostics.", err),
+            HookResolverError::HookError(err) => write!(f, "ERROR: Hook execution failed.\n\nDetails: {:?}\n\nSOLUTION: Check the hook configuration and ensure all dependencies are installed.", err),
+            HookResolverError::HookNotFound(msg) => write!(f, "ERROR: Hook not found.\n\nDetails: {}\n\nSOLUTION: Verify that the hook ID is correct and defined in your configuration file.", msg),
+            HookResolverError::UnsupportedLanguage(lang) => write!(f, "ERROR: Unsupported language: {}\n\nSOLUTION: Use one of the supported languages: python, node, javascript, typescript, ruby, or system.", lang),
+            HookResolverError::ProcessError(msg) => write!(f, "ERROR: Process execution failed.\n\nDetails: {}\n\nSOLUTION: Check that the command exists and has the correct permissions.", msg),
+            HookResolverError::FileNotFound { path, context } => {
+                write!(f, "ERROR: Specific file not found: {}\n\nContext: {}\n\nSOLUTION: Please check that this file exists and that the path is correct. If this is a configuration file, ensure it's properly formatted.", 
+                       path.display(), context)
+            },
+            HookResolverError::IoError(err) => {
+                match err.kind() {
+                    std::io::ErrorKind::NotFound => write!(f, "ERROR: File or directory not found.\n\nThis could be due to one of the following issues:\n\
+                       - Missing configuration file (check for .rustyhook/config.yaml or .pre-commit-config.yaml)\n\
+                       - Missing hook script or executable (verify the 'entry' path in your config)\n\
+                       - Missing dependencies required by a hook\n\
+                       - Incorrect working directory (ensure you're running from the repository root)\n\n\
+                       SOLUTION: Try running 'rustyhook doctor' for more detailed diagnostics, or check the paths in your configuration."),
+                    std::io::ErrorKind::PermissionDenied => write!(f, "ERROR: Permission denied.\n\nDetails: {}\n\nSOLUTION: Check file permissions and ensure you have the necessary access rights. You may need to run with elevated privileges.", err),
+                    _ => write!(f, "ERROR: IO operation failed.\n\nDetails: {}\n\nSOLUTION: Check system resources, disk space, and file access. If the issue persists, try running 'rustyhook doctor' for diagnostics.", err),
+                }
+            }
+        }
+    }
+}
+
+impl std::error::Error for HookResolverError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            HookResolverError::IoError(err) => Some(err),
+            _ => None,
+        }
     }
 }
 
@@ -96,7 +141,12 @@ impl HookResolver {
     /// Create a hook context from a hook
     fn create_context(&self, hook: &Hook, files: &[PathBuf]) -> Result<HookContext, HookResolverError> {
         // Get the current working directory
-        let working_dir = env::current_dir()?;
+        let working_dir = env::current_dir().map_err(|err| {
+            HookResolverError::FileNotFound {
+                path: PathBuf::from("."),
+                context: format!("Failed to access current working directory when creating context for hook '{}': {}", hook.id, err)
+            }
+        })?;
 
         // Create a file matcher if the hook has a file pattern
         let filtered_files = if !hook.files.is_empty() {
@@ -246,6 +296,12 @@ impl HookResolver {
                 super::hook_context::HookContextError::IoError(err) => HookResolverError::IoError(err),
                 super::hook_context::HookContextError::HookError(err) => HookResolverError::HookError(err),
                 super::hook_context::HookContextError::ToolError(err) => HookResolverError::ToolError(err),
+                super::hook_context::HookContextError::CommandNotFound { command, hook_id, error: _ } => {
+                    HookResolverError::FileNotFound {
+                        path: PathBuf::from(command),
+                        context: format!("Command not found when running hook '{}'. Make sure the command is installed and available in your PATH.", hook_id)
+                    }
+                }
             })
         } else {
             // Run the hook in the same process using the tool
@@ -258,6 +314,12 @@ impl HookResolver {
                 super::hook_context::HookContextError::IoError(err) => HookResolverError::IoError(err),
                 super::hook_context::HookContextError::HookError(err) => HookResolverError::HookError(err),
                 super::hook_context::HookContextError::ToolError(err) => HookResolverError::ToolError(err),
+                super::hook_context::HookContextError::CommandNotFound { command, hook_id, error: _ } => {
+                    HookResolverError::FileNotFound {
+                        path: PathBuf::from(command),
+                        context: format!("Command not found when running hook '{}'. Make sure the command is installed and available in your PATH.", hook_id)
+                    }
+                }
             })
         }
     }

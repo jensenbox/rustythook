@@ -19,6 +19,15 @@ pub enum HookContextError {
     HookError(HookError),
     /// Tool error
     ToolError(crate::toolchains::ToolError),
+    /// Command not found error
+    CommandNotFound {
+        /// The command that was not found
+        command: String,
+        /// The hook ID
+        hook_id: String,
+        /// The original error
+        error: std::io::Error,
+    },
 }
 
 impl From<std::io::Error> for HookContextError {
@@ -187,7 +196,22 @@ impl HookContext {
         command.current_dir(&self.working_dir);
 
         // Run the command
-        let output = command.output()?;
+        let output = command.output().map_err(|err| {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                // Command not found error
+                HookContextError::CommandNotFound {
+                    command: command_name.to_string(),
+                    hook_id: self.id.clone(),
+                    error: err,
+                }
+            } else {
+                // Other IO error
+                HookContextError::IoError(std::io::Error::new(
+                    err.kind(),
+                    format!("Failed to execute command '{}' for hook '{}': {}", command_name, self.id, err)
+                ))
+            }
+        })?;
 
         // Check if the command was successful
         if !output.status.success() {

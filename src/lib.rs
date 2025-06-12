@@ -286,7 +286,7 @@ fn run_hooks_with_native_config() {
             match rt.block_on(executor.run_all_hooks(files)) {
                 Ok(_) => info!("All hooks passed!"),
                 Err(e) => {
-                    error!("Error running hooks: {:?}", e);
+                    error!("Error running hooks using native config: {}", e);
                     std::process::exit(1);
                 }
             }
@@ -372,7 +372,7 @@ fn run_hooks_with_compat_config() {
             match rt.block_on(executor.run_all_hooks(files)) {
                 Ok(_) => info!("All hooks passed!"),
                 Err(e) => {
-                    error!("Error running hooks: {:?}", e);
+                    error!("Error running hooks in compatibility mode: {}", e);
                     std::process::exit(1);
                 }
             }

@@ -1,91 +1,82 @@
-# Pre-commit Configuration for RustyHook Testing
-# This configuration includes hooks for various languages and tools to ensure good coverage
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
 
-default_stages: [commit, push]
-fail_fast: true
+exclude: |
+  (?x)^(
+     .*/migrations/.* |
+     .*/openapi_client/.* |
+     \.idea/.* |
+     .*.package-lock.json
+  )$
+
+default_stages: [pre-commit]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v5.0.0
     hooks:
-      - id: trailing-whitespace
-        name: Trim Trailing Whitespace
-        description: This hook trims trailing whitespace
-        types: [text]
-        stages: [commit]
-
-      - id: end-of-file-fixer
-        name: Fix End of Files
-        description: Ensures that a file is either empty, or ends with one newline
-        types: [text]
-        stages: [commit]
-
+      #      - id: trailing-whitespace
+      #      - id: end-of-file-fixer
       - id: check-yaml
-        name: Check YAML
-        description: Checks yaml files for parseable syntax
-        types: [yaml]
-        stages: [commit]
-
+        #        args: [ --allow-multiple-documents ]
       - id: check-added-large-files
-        name: Check for added large files
-        description: Prevents giant files from being committed
-        args: ['--maxkb=500']
-        stages: [commit]
+      - id: check-json
+      - id: check-toml
+      - id: name-tests-test
+        args:
+          - --pytest-test-first
+        exclude: .*/factories.py
+      - id: pretty-format-json
+        args:
+          - --autofix
+          - --no-sort-keys
+      - id: no-commit-to-branch
+        name: Prevent commit to main branch
+      - id: check-shebang-scripts-are-executable
+      - id: mixed-line-ending
+      - id: detect-aws-credentials
+        args:
+          - --allow-missing-credentials
+      - id: detect-private-key
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.262
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.3
     hooks:
       - id: ruff
-        name: Ruff Python Linter
-        description: An extremely fast Python linter
-        types: [python]
-        args: [--fix, --exit-non-zero-on-fix]
-        stages: [commit]
+        args: ["--fix", "--unsafe-fixes"]
+      - id: ruff-format
 
-  - repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
     hooks:
-      - id: fmt
-        name: Rust Formatter
-        description: Runs rustfmt on all Rust files
-        types: [rust]
-        stages: [commit]
+      - id: shellcheck
 
-      - id: cargo-check
-        name: Rust Check
-        description: Checks the code for errors
-        types: [rust]
-        stages: [commit]
-
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v8.38.0
+  - repo: https://github.com/biomejs/pre-commit
+    rev: "v0.6.1"
     hooks:
-      - id: eslint
-        name: ESLint
-        description: Checks JavaScript files for errors
-        types: [javascript]
-        args: [--fix]
-        stages: [commit]
-        additional_dependencies:
-          - eslint@8.38.0
-          - eslint-config-standard@17.0.0
+      - id: biome-check
+        additional_dependencies: ["@biomejs/biome@1.8.3"]
+        args:
+          - --changed
 
-  - repo: local
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.10.0-2
     hooks:
-      - id: custom-shell-script
-        name: Custom Shell Script
-        description: A custom shell script that runs on all files
-        entry: ./scripts/custom-check.sh
-        language: script
-        types: [text]
-        stages: [commit]
+      - id: shfmt
 
-      - id: custom-python-script
-        name: Custom Python Script
-        description: A custom Python script that runs on Python files
-        entry: python ./scripts/custom-python-check.py
-        language: python
-        types: [python]
-        stages: [commit]
-        additional_dependencies:
-          - requests==2.28.2
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        exclude: \.csv$
+
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.14.0
+    hooks:
+      - id: yamlfmt
+
+  - repo: https://github.com/rtts/djhtml
+    rev: '3.0.7'
+    hooks:
+      - id: djhtml
+        files: .*/templates/.*\.html$

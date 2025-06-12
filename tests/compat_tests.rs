@@ -104,5 +104,5 @@ fn test_convert_to_rustyhook_config() {
     assert_eq!(hook.id, "trailing-whitespace");
     assert_eq!(hook.name, "trailing-whitespace");
     assert_eq!(hook.entry, "pre-commit-hooks trailing-whitespace");
-    assert_eq!(hook.language, "system");
+    assert_eq!(hook.language, "python");
 }

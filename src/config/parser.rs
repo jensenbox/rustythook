@@ -60,6 +60,29 @@ fn default_hook_type() -> HookType {
     HookType::External
 }
 
+/// Access mode for hooks (read-only or read-write)
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum AccessMode {
+    /// Read-only access to files (can run in parallel with other hooks)
+    Read,
+    /// Read-write access to files (cannot run in parallel with other hooks on the same files)
+    ReadWrite,
+}
+
+impl fmt::Display for AccessMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AccessMode::Read => write!(f, "read"),
+            AccessMode::ReadWrite => write!(f, "read-write"),
+        }
+    }
+}
+
+/// Default access mode (read-write for safety)
+fn default_access_mode() -> AccessMode {
+    AccessMode::ReadWrite
+}
+
 /// Represents a single hook
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Hook {
@@ -102,6 +125,10 @@ pub struct Hook {
     /// Whether to run this hook in a separate process
     #[serde(default)]
     pub separate_process: bool,
+
+    /// Access mode for this hook (read-only or read-write)
+    #[serde(default = "default_access_mode")]
+    pub access_mode: AccessMode,
 }
 
 /// Default stages for hooks

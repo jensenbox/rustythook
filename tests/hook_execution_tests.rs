@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 use rustyhook::config::{Config, Hook, Repo};
-use rustyhook::config::parser::HookType;
+use rustyhook::config::parser::{HookType, AccessMode};
 use rustyhook::runner::{HookResolver, FileMatcher, HookContext, ParallelExecutor};
 
 #[test]
@@ -54,6 +54,7 @@ fn test_hook_resolver() {
                         version: None,
                         hook_type: HookType::External,
                         separate_process: false,
+                        access_mode: AccessMode::ReadWrite,
                     },
                 ],
             },
@@ -84,6 +85,7 @@ fn test_hook_context() {
         version: None,
         hook_type: HookType::External,
         separate_process: true,
+        access_mode: AccessMode::ReadWrite,
     };
 
     // Create a working directory and files to process
@@ -138,6 +140,7 @@ fn test_run_hook_in_separate_process() {
                         version: None,
                         hook_type: HookType::External,
                         separate_process: true,
+                        access_mode: AccessMode::ReadWrite,
                     },
                 ],
             },
@@ -187,6 +190,7 @@ fn test_skip_hooks() {
                         version: None,
                         hook_type: HookType::External,
                         separate_process: true,
+                        access_mode: AccessMode::ReadWrite,
                     },
                     Hook {
                         id: "hook2".to_string(),
@@ -200,6 +204,7 @@ fn test_skip_hooks() {
                         version: None,
                         hook_type: HookType::External,
                         separate_process: true,
+                        access_mode: AccessMode::ReadWrite,
                     },
                     Hook {
                         id: "hook3".to_string(),
@@ -213,6 +218,7 @@ fn test_skip_hooks() {
                         version: None,
                         hook_type: HookType::External,
                         separate_process: true,
+                        access_mode: AccessMode::ReadWrite,
                     },
                 ],
             },
@@ -261,6 +267,7 @@ fn test_hook_context_execution() {
         version: None,
         hook_type: HookType::External,
         separate_process: false, // Even though this is false, it should run in a separate process because it's an external hook
+        access_mode: AccessMode::ReadWrite,
     };
 
     // Create a hook that should run in a separate process (separate_process = true)
@@ -276,6 +283,7 @@ fn test_hook_context_execution() {
         version: None,
         hook_type: HookType::BuiltIn,
         separate_process: true, // This should cause the hook to run in a separate process
+        access_mode: AccessMode::ReadWrite,
     };
 
     // Create a hook that should run in the same process
@@ -291,6 +299,7 @@ fn test_hook_context_execution() {
         version: None,
         hook_type: HookType::BuiltIn,
         separate_process: false, // This should cause the hook to run in the same process
+        access_mode: AccessMode::ReadWrite,
     };
 
     // Create a working directory and files to process
@@ -358,6 +367,7 @@ fn test_parallel_execution() {
                         version: None,
                         hook_type: HookType::External,
                         separate_process: true,
+                        access_mode: AccessMode::ReadWrite,
                     },
                     Hook {
                         id: "hook2".to_string(),
@@ -371,6 +381,7 @@ fn test_parallel_execution() {
                         version: None,
                         hook_type: HookType::External,
                         separate_process: true,
+                        access_mode: AccessMode::ReadWrite,
                     },
                     Hook {
                         id: "hook3".to_string(),
@@ -384,6 +395,7 @@ fn test_parallel_execution() {
                         version: None,
                         hook_type: HookType::External,
                         separate_process: true,
+                        access_mode: AccessMode::ReadWrite,
                     },
                 ],
             },
@@ -414,4 +426,125 @@ fn test_parallel_execution() {
 
     // We can't easily verify that hook2 was skipped or that hooks ran in parallel in this test framework,
     // but the implementation in ParallelExecutor should handle it correctly
+}
+
+#[test]
+fn test_mutex_system() {
+    use rustyhook::config::parser::AccessMode;
+    
+    // Create a temporary directory for the test
+    let temp_dir = tempfile::tempdir().unwrap();
+    let cache_dir = temp_dir.path().to_path_buf();
+
+    // Create a test configuration with hooks of different access modes
+    let config = Config {
+        default_stages: vec!["commit".to_string()],
+        fail_fast: false,
+        parallelism: 0, // Unlimited parallelism
+        repos: vec![
+            Repo {
+                repo: "local".to_string(),
+                hooks: vec![
+                    // Read-only hooks with different file patterns
+                    Hook {
+                        id: "read-hook1".to_string(),
+                        name: "Read Hook 1".to_string(),
+                        entry: "echo".to_string(),
+                        language: "system".to_string(),
+                        files: ".*\\.rs$".to_string(),
+                        stages: vec!["commit".to_string()],
+                        args: vec!["Read Hook 1".to_string()],
+                        env: std::collections::HashMap::new(),
+                        version: None,
+                        hook_type: HookType::External,
+                        separate_process: true,
+                        access_mode: AccessMode::Read,
+                    },
+                    Hook {
+                        id: "read-hook2".to_string(),
+                        name: "Read Hook 2".to_string(),
+                        entry: "echo".to_string(),
+                        language: "system".to_string(),
+                        files: ".*\\.py$".to_string(),
+                        stages: vec!["commit".to_string()],
+                        args: vec!["Read Hook 2".to_string()],
+                        env: std::collections::HashMap::new(),
+                        version: None,
+                        hook_type: HookType::External,
+                        separate_process: true,
+                        access_mode: AccessMode::Read,
+                    },
+                    // Read-write hooks with different file patterns
+                    Hook {
+                        id: "write-hook1".to_string(),
+                        name: "Write Hook 1".to_string(),
+                        entry: "echo".to_string(),
+                        language: "system".to_string(),
+                        files: ".*\\.rs$".to_string(),
+                        stages: vec!["commit".to_string()],
+                        args: vec!["Write Hook 1".to_string()],
+                        env: std::collections::HashMap::new(),
+                        version: None,
+                        hook_type: HookType::External,
+                        separate_process: true,
+                        access_mode: AccessMode::ReadWrite,
+                    },
+                    Hook {
+                        id: "write-hook2".to_string(),
+                        name: "Write Hook 2".to_string(),
+                        entry: "echo".to_string(),
+                        language: "system".to_string(),
+                        files: ".*\\.py$".to_string(),
+                        stages: vec!["commit".to_string()],
+                        args: vec!["Write Hook 2".to_string()],
+                        env: std::collections::HashMap::new(),
+                        version: None,
+                        hook_type: HookType::External,
+                        separate_process: true,
+                        access_mode: AccessMode::ReadWrite,
+                    },
+                    // Another read-write hook with the same file pattern as write-hook1
+                    Hook {
+                        id: "write-hook3".to_string(),
+                        name: "Write Hook 3".to_string(),
+                        entry: "echo".to_string(),
+                        language: "system".to_string(),
+                        files: ".*\\.rs$".to_string(),
+                        stages: vec!["commit".to_string()],
+                        args: vec!["Write Hook 3".to_string()],
+                        env: std::collections::HashMap::new(),
+                        version: None,
+                        hook_type: HookType::External,
+                        separate_process: true,
+                        access_mode: AccessMode::ReadWrite,
+                    },
+                ],
+            },
+        ],
+    };
+
+    // Create a parallel executor
+    let executor = ParallelExecutor::new(config, cache_dir);
+
+    // Create some test files
+    let files = vec![
+        PathBuf::from("src/main.rs"),
+        PathBuf::from("src/lib.rs"),
+        PathBuf::from("src/main.py"),
+    ];
+
+    // Create a tokio runtime for async execution
+    let rt = tokio::runtime::Runtime::new().unwrap();
+
+    // Run all hooks in parallel
+    let result = rt.block_on(executor.run_all_hooks(files));
+
+    // Check that the hooks ran successfully
+    assert!(result.is_ok());
+
+    // We can't easily verify the exact execution order in this test framework,
+    // but the implementation in ParallelExecutor should:
+    // 1. Run all read-only hooks in parallel
+    // 2. Group read-write hooks by their file patterns
+    // 3. Run read-write hooks in parallel only if their file patterns don't overlap
 }

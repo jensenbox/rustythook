@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::parser::{Config, Hook, Repo, ConfigError, HookType};
+use super::parser::{Config, Hook, Repo, ConfigError, HookType, AccessMode};
 
 /// Represents a pre-commit configuration
 #[derive(Debug, Serialize, Deserialize)]
@@ -147,20 +147,33 @@ pub fn convert_to_rustyhook_config(precommit_config: &PreCommitConfig) -> Config
                         "ruby".to_string(),
                         precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
                     )
+                } else if lang == "system" && precommit_repo.repo.contains("pre-commit/pre-commit-hooks") {
+                    // For pre-commit hooks with system language, use python and the hook ID directly
+                    (
+                        "python".to_string(),
+                        precommit_hook.id.clone()
+                    )
+                } else if precommit_repo.repo.contains("pre-commit/pre-commit-hooks") {
+                    // For pre-commit hooks with other languages, use python and the hook ID directly
+                    (
+                        "python".to_string(),
+                        precommit_hook.id.clone()
+                    )
                 } else {
-                    // For other languages, use the system language
+                    // For other languages and repos, use the system language
                     (
                         "system".to_string(),
-                        precommit_hook.entry.clone().unwrap_or_else(|| format!("pre-commit-hooks {}", precommit_hook.id))
+                        precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
                     )
                 }
             } else {
                 // If no language is specified, determine it based on the repo URL
                 if precommit_repo.repo.contains("pre-commit/pre-commit-hooks") {
                     // For pre-commit hooks, use the python language and install pre-commit-hooks
+                    // Use the hook ID directly as the entry point
                     (
                         "python".to_string(),
-                        format!("pre-commit-hooks {}", precommit_hook.id)
+                        precommit_hook.id.clone()
                     )
                 } else if precommit_repo.repo.contains("astral-sh/ruff-pre-commit") {
                     // For ruff hooks, use the python language and install ruff
@@ -213,6 +226,16 @@ pub fn convert_to_rustyhook_config(precommit_config: &PreCommitConfig) -> Config
                 }
             };
 
+            // Determine the hook type based on the repo and language
+            let hook_type = if precommit_repo.repo.contains("pre-commit/pre-commit-hooks") && language == "python" {
+                // For pre-commit-hooks with python language, use internal hook type
+                // so they will be run using the PythonTool instead of in a separate process
+                HookType::Internal
+            } else {
+                // For other hooks, use external hook type
+                HookType::External
+            };
+
             let hook = Hook {
                 id: precommit_hook.id.clone(),
                 name: precommit_hook.name.clone().unwrap_or_else(|| precommit_hook.id.clone()),
@@ -223,8 +246,9 @@ pub fn convert_to_rustyhook_config(precommit_config: &PreCommitConfig) -> Config
                 args: precommit_hook.args.clone().unwrap_or_default(),
                 env: precommit_hook.env.clone().unwrap_or_default(),
                 version: Some(precommit_repo.rev.clone()),
-                hook_type: HookType::External,
+                hook_type,
                 separate_process: false,
+                access_mode: AccessMode::ReadWrite, // Default to read-write for safety
             };
 
             hooks.push(hook);

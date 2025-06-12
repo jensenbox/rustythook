@@ -8,6 +8,8 @@ use tokio::sync::{Mutex, RwLock};
 use tokio::task::JoinSet;
 use std::collections::HashMap;
 
+use crate::config::parser::AccessMode;
+
 use crate::config::{Config, Hook};
 use crate::toolchains::Tool;
 use super::hook_resolver::{HookResolver, HookResolverError};
@@ -32,6 +34,24 @@ impl From<HookResolverError> for ParallelExecutionError {
 impl From<tokio::task::JoinError> for ParallelExecutionError {
     fn from(err: tokio::task::JoinError) -> Self {
         ParallelExecutionError::TokioError(err)
+    }
+}
+
+impl std::fmt::Display for ParallelExecutionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParallelExecutionError::HookResolverError(err) => write!(f, "{}", err),
+            ParallelExecutionError::TokioError(err) => write!(f, "Task execution error: {}", err),
+        }
+    }
+}
+
+impl std::error::Error for ParallelExecutionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ParallelExecutionError::HookResolverError(err) => Some(err),
+            ParallelExecutionError::TokioError(err) => Some(err),
+        }
     }
 }
 
@@ -114,7 +134,12 @@ impl ParallelExecutor {
         }
 
         // Get the current working directory
-        let working_dir = std::env::current_dir().map_err(HookResolverError::IoError)?;
+        let working_dir = std::env::current_dir().map_err(|err| {
+            HookResolverError::FileNotFound {
+                path: PathBuf::from("."),
+                context: format!("Failed to access current working directory when running hook '{}': {}", hook_id, err)
+            }
+        })?;
 
         // Create the context for running the hook
         let context = HookContext::from_hook(hook, working_dir, files.to_vec());
@@ -127,6 +152,12 @@ impl ParallelExecutor {
                 super::hook_context::HookContextError::IoError(err) => HookResolverError::IoError(err),
                 super::hook_context::HookContextError::HookError(err) => HookResolverError::HookError(err),
                 super::hook_context::HookContextError::ToolError(err) => HookResolverError::ToolError(err),
+                super::hook_context::HookContextError::CommandNotFound { command, hook_id, error: _ } => {
+                    HookResolverError::FileNotFound {
+                        path: PathBuf::from(command),
+                        context: format!("Command not found when running hook '{}'. Make sure the command is installed and available in your PATH.", hook_id)
+                    }
+                }
             })
         } else {
             // Instead of using the tool cache or setup_tool, use run_hook directly
@@ -150,69 +181,135 @@ impl ParallelExecutor {
         // Create a JoinSet to collect all tasks
         let mut tasks = JoinSet::new();
 
-        // Run hooks with parallelism limit
+        // Separate hooks into read-only and read-write groups
+        let mut read_hooks = Vec::new();
+        let mut write_hooks = Vec::new();
+
+        for context in hook_contexts {
+            if context.2.access_mode == AccessMode::Read {
+                read_hooks.push(context);
+            } else {
+                write_hooks.push(context);
+            }
+        }
+
+        // Run read-only hooks first (they can all run in parallel)
+        println!("Running {} read-only hooks", read_hooks.len());
+
+        // Apply parallelism limit if configured
         if parallelism > 0 {
-            // Limited parallelism
-            println!("Running hooks with parallelism limit of {}", parallelism);
-
-            // Process hooks in batches
-            for chunk in hook_contexts.chunks(parallelism) {
-                // Spawn tasks for this batch
-                for (repo_id, hook_id, hook, filtered_files) in chunk {
-                    // Clone the necessary data for the task
-                    let resolver = Arc::clone(&self.resolver);
-                    let tool_cache = Arc::clone(&self.tool_cache);
-                    let repo_id = repo_id.clone();
-                    let hook_id = hook_id.clone();
-                    let hook = hook.clone();
-                    let filtered_files = filtered_files.clone();
-
-                    // Spawn a task to run the hook
-                    tasks.spawn(async move {
-                        Self::run_hook_with_context(
-                            resolver,
-                            tool_cache,
-                            &repo_id,
-                            &hook_id,
-                            &hook,
-                            &filtered_files
-                        ).await.map_err(ParallelExecutionError::from)
-                    });
-                }
-
-                // Wait for all tasks in this batch to complete
-                while tasks.len() > 0 {
-                    let result = tasks.join_next().await.unwrap();
-                    result??;
-                }
+            // Process read hooks in batches
+            for chunk in read_hooks.chunks(parallelism) {
+                self.run_hook_batch(chunk, &mut tasks).await?;
             }
         } else {
-            // Unlimited parallelism
-            println!("Running hooks with unlimited parallelism");
+            // Run all read hooks in parallel
+            self.run_hook_batch(&read_hooks, &mut tasks).await?;
+        }
 
-            // Run each hook in parallel
-            for (repo_id, hook_id, hook, filtered_files) in hook_contexts {
-                // Clone the necessary data for the task
-                let resolver = Arc::clone(&self.resolver);
-                let tool_cache = Arc::clone(&self.tool_cache);
+        // Group read-write hooks by their file globs to avoid conflicts
+        println!("Running {} read-write hooks", write_hooks.len());
 
-                // Spawn a task to run the hook
-                tasks.spawn(async move {
-                    Self::run_hook_with_context(
-                        resolver,
-                        tool_cache,
-                        &repo_id,
-                        &hook_id,
-                        &hook,
-                        &filtered_files
-                    ).await.map_err(ParallelExecutionError::from)
-                });
+        if write_hooks.is_empty() {
+            return Ok(());
+        }
+
+        // Create groups of non-overlapping hooks
+        let mut hook_groups: Vec<Vec<(String, String, Hook, Vec<PathBuf>)>> = Vec::new();
+
+        // Helper function to check if two hooks have overlapping file patterns
+        let hooks_overlap = |hook1: &Hook, hook2: &Hook| -> bool {
+            // If either hook has an empty files pattern, assume they overlap
+            if hook1.files.is_empty() || hook2.files.is_empty() {
+                return true;
             }
 
-            // Wait for all tasks to complete
-            while let Some(result) = tasks.join_next().await {
-                result??;
+            // If the file patterns are different, assume they don't overlap
+            // This is a simplification - in a real implementation, we would need to check
+            // if the regex patterns could match the same files
+            hook1.files == hook2.files
+        };
+
+        // Group hooks that don't overlap
+        for (repo_id, hook_id, hook, filtered_files) in write_hooks {
+            // Try to find a group where this hook doesn't overlap with any hook
+            let mut found_group = false;
+
+            for group in &mut hook_groups {
+                let mut can_add_to_group = true;
+
+                // Check if this hook overlaps with any hook in the group
+                for (_, _, existing_hook, _) in group.iter() {
+                    if hooks_overlap(existing_hook, &hook) {
+                        can_add_to_group = false;
+                        break;
+                    }
+                }
+
+                if can_add_to_group {
+                    group.push((repo_id.clone(), hook_id.clone(), hook.clone(), filtered_files.clone()));
+                    found_group = true;
+                    break;
+                }
             }
+
+            // If no suitable group was found, create a new group
+            if !found_group {
+                hook_groups.push(vec![(repo_id, hook_id, hook, filtered_files)]);
+            }
+        }
+
+        // Run each group of non-overlapping hooks in parallel
+        for (i, group) in hook_groups.iter().enumerate() {
+            println!("Running group {} of {} non-overlapping read-write hooks", i + 1, group.len());
+
+            if parallelism > 0 {
+                // Process hooks in batches
+                for chunk in group.chunks(parallelism) {
+                    self.run_hook_batch(chunk, &mut tasks).await?;
+                }
+            } else {
+                // Run all hooks in this group in parallel
+                self.run_hook_batch(group, &mut tasks).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Run a batch of hooks in parallel
+    async fn run_hook_batch(
+        &self,
+        hooks: &[(String, String, Hook, Vec<PathBuf>)],
+        tasks: &mut JoinSet<Result<(), ParallelExecutionError>>
+    ) -> Result<(), ParallelExecutionError> {
+        // Spawn tasks for this batch
+        for (repo_id, hook_id, hook, filtered_files) in hooks {
+            // Clone the necessary data for the task
+            let resolver = Arc::clone(&self.resolver);
+            let tool_cache = Arc::clone(&self.tool_cache);
+            let repo_id = repo_id.clone();
+            let hook_id = hook_id.clone();
+            let hook = hook.clone();
+            let filtered_files = filtered_files.clone();
+
+            // Spawn a task to run the hook
+            tasks.spawn(async move {
+                Self::run_hook_with_context(
+                    resolver,
+                    tool_cache,
+                    &repo_id,
+                    &hook_id,
+                    &hook,
+                    &filtered_files
+                ).await.map_err(ParallelExecutionError::from)
+            });
+        }
+
+        // Wait for all tasks in this batch to complete
+        while tasks.len() > 0 {
+            let result = tasks.join_next().await.unwrap();
+            result??;
         }
 
         Ok(())

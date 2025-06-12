@@ -84,6 +84,7 @@ impl PythonTool {
     }
 
     /// Find the Python executable
+    #[allow(dead_code)]
     fn find_python() -> Result<PathBuf, ToolError> {
         // Try to find Python 3.7+
         for version in &["python3", "python3.7", "python3.8", "python3.9", "python3.10", "python3.11", "python"] {
@@ -635,7 +636,57 @@ impl Tool for PythonTool {
     }
 
     fn run(&self, files: &[PathBuf]) -> Result<(), ToolError> {
-        // Find the tool executable in the virtualenv
+        // Special handling for pre-commit-hooks package
+        if self.packages.contains(&"pre-commit-hooks".to_string()) {
+            // Find the Python executable in the virtualenv
+            let python_path = if cfg!(windows) {
+                self.install_dir.join("Scripts").join("python.exe")
+            } else {
+                self.install_dir.join("bin").join("python")
+            };
+
+            // Run the pre-commit-hooks module with the hook ID
+            let mut command = Command::new(&python_path);
+            command.arg("-m")
+                   .arg(format!("pre_commit_hooks.{}", self.name.replace('-', "_")));
+
+            // Add files as arguments
+            for file in files {
+                command.arg(file);
+            }
+
+            // Execute the command with output capture
+            let output = command
+                .output()
+                .map_err(|e| ToolError::ExecutionError(format!("Failed to run pre-commit-hooks module {}: {}", self.name, e)))?;
+
+            // Check the status
+            if output.status.success() {
+                return Ok(());
+            } else {
+                // Try to convert stdout and stderr to strings, but handle non-UTF-8 data
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+
+                // Log the command and its output
+                log::error!("Command failed: {} -m pre_commit_hooks.{} {}", 
+                    python_path.display(), 
+                    self.name.replace('-', "_"), 
+                    files.iter().map(|f| f.display().to_string()).collect::<Vec<_>>().join(" "));
+                if !stdout.is_empty() {
+                    log::error!("Command stdout: {}", stdout);
+                }
+                if !stderr.is_empty() {
+                    log::error!("Command stderr: {}", stderr);
+                }
+
+                return Err(ToolError::ExecutionError(
+                    format!("pre-commit-hooks module {} failed with exit code {:?}", self.name, output.status.code()),
+                ));
+            }
+        }
+
+        // For other Python packages, find the tool executable in the virtualenv
         let tool_path = if cfg!(windows) {
             self.install_dir.join("Scripts").join(format!("{}.exe", self.name))
         } else {
