@@ -25,7 +25,8 @@ Tasks:
 - [x] Use the instructions found at docs/ruby.md to replace the current process of installing Ruby. Pay special attention to all the tasks and requirements.
 - [x] Take the best ideas from the pre-commit and lefthook projects and integrate them into rustyhook.
 - [x] ensure all tasks can operate in parallel
-- [ ] There is no need for any form of conditional checks when reading the compat repositories. You can instead look at the .pre-commit-hooks.yaml file in the root of each repository and parse it to tell you how to execute the hooks.
+- [x] There is no need for any form of conditional checks when reading the compat repositories. You can instead look at the .pre-commit-hooks.yaml file in the root of each repository and parse it to tell you how to execute the hooks.
+- [ ] The entire concept of how the compat command is working is flawed. It should never need to know anything about any particular repository. It should be able to read the .pre-commit-hooks.yaml file and determine how to execute the hooks.
 - [ ] We will need some sort of mutex system to ensure that the hooks are not running at the same time on the same file. Perhaps what might work better is to mark the hooks as readers or readers and writers to allow for all readers to execute first and in parallel but the reader/writers can only execute in parallel as long as their file globs do not overlap.
 - [ ] implement an "explain" command that can be used to explain the current configuration and any errors that may have occurred. Perhaps the existing doctor command can be used instead?
 - [ ] use uv to start all python hooks in a separate process

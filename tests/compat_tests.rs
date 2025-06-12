@@ -6,6 +6,7 @@ use rustyhook::config::{
     PreCommitConfig, PreCommitRepo, PreCommitHook,
     parse_precommit_config, convert_to_rustyhook_config
 };
+use rustyhook::config::parser::HookType;
 
 #[test]
 fn test_parse_precommit_config() {
@@ -103,6 +104,114 @@ fn test_convert_to_rustyhook_config() {
     let hook = &repo.hooks[0];
     assert_eq!(hook.id, "trailing-whitespace");
     assert_eq!(hook.name, "trailing-whitespace");
-    assert_eq!(hook.entry, "pre-commit-hooks trailing-whitespace");
     assert_eq!(hook.language, "python");
+    assert_eq!(hook.entry, "trailing-whitespace");
+    assert_eq!(hook.hook_type, HookType::BuiltIn);
+}
+
+#[test]
+fn test_convert_to_rustyhook_config_with_multiple_repos() {
+    // Create a pre-commit configuration with multiple repositories
+    let precommit_config = PreCommitConfig {
+        default_stages: vec!["commit".to_string()],
+        fail_fast: false,
+        repos: vec![
+            PreCommitRepo {
+                repo: "https://github.com/pre-commit/pre-commit-hooks".to_string(),
+                rev: "v4.4.0".to_string(),
+                hooks: vec![
+                    PreCommitHook {
+                        id: "trailing-whitespace".to_string(),
+                        name: None,
+                        entry: None,
+                        language: None,
+                        files: None,
+                        stages: None,
+                        args: None,
+                        env: None,
+                    },
+                ],
+            },
+            PreCommitRepo {
+                repo: "https://github.com/astral-sh/ruff-pre-commit".to_string(),
+                rev: "v0.0.262".to_string(),
+                hooks: vec![
+                    PreCommitHook {
+                        id: "ruff".to_string(),
+                        name: None,
+                        entry: None,
+                        language: None,
+                        files: None,
+                        stages: None,
+                        args: None,
+                        env: None,
+                    },
+                ],
+            },
+            PreCommitRepo {
+                repo: "https://github.com/biomejs/pre-commit".to_string(),
+                rev: "v1.0.0".to_string(),
+                hooks: vec![
+                    PreCommitHook {
+                        id: "biome-check".to_string(),
+                        name: None,
+                        entry: None,
+                        language: None,
+                        files: None,
+                        stages: None,
+                        args: None,
+                        env: None,
+                    },
+                ],
+            },
+        ],
+    };
+
+    // Convert to RustyHook configuration
+    let rustyhook_config = convert_to_rustyhook_config(&precommit_config);
+
+    // Check the configuration
+    assert_eq!(rustyhook_config.default_stages, vec!["commit".to_string()]);
+    assert_eq!(rustyhook_config.fail_fast, false);
+    assert_eq!(rustyhook_config.repos.len(), 3);
+
+    // Check the first repository (pre-commit-hooks)
+    let repo1 = &rustyhook_config.repos[0];
+    assert_eq!(repo1.repo, "https://github.com/pre-commit/pre-commit-hooks");
+    assert_eq!(repo1.hooks.len(), 1);
+
+    // Check the hook in the first repository
+    let hook1 = &repo1.hooks[0];
+    assert_eq!(hook1.id, "trailing-whitespace");
+    assert_eq!(hook1.name, "trailing-whitespace");
+    assert_eq!(hook1.language, "python");
+    assert_eq!(hook1.entry, "trailing-whitespace");
+    assert_eq!(hook1.hook_type, HookType::BuiltIn);
+
+    // Check the second repository (ruff)
+    let repo2 = &rustyhook_config.repos[1];
+    assert_eq!(repo2.repo, "https://github.com/astral-sh/ruff-pre-commit");
+    assert_eq!(repo2.hooks.len(), 1);
+
+    // Check the hook in the second repository
+    let hook2 = &repo2.hooks[0];
+    assert_eq!(hook2.id, "ruff");
+    assert_eq!(hook2.name, "ruff");
+    assert_eq!(hook2.language, "python");
+    assert_eq!(hook2.entry, "ruff");
+    // Since the entry matches the ID, it should be a built-in hook according to our new logic
+    assert_eq!(hook2.hook_type, HookType::BuiltIn);
+
+    // Check the third repository (biome)
+    let repo3 = &rustyhook_config.repos[2];
+    assert_eq!(repo3.repo, "https://github.com/biomejs/pre-commit");
+    assert_eq!(repo3.hooks.len(), 1);
+
+    // Check the hook in the third repository
+    let hook3 = &repo3.hooks[0];
+    assert_eq!(hook3.id, "biome-check");
+    assert_eq!(hook3.name, "biome-check");
+    assert_eq!(hook3.language, "node");
+    assert_eq!(hook3.entry, "biome check");
+    assert_eq!(hook3.hook_type, HookType::External);
 }

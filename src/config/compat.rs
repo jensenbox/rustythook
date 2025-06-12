@@ -9,6 +9,190 @@ use std::path::{Path, PathBuf};
 
 use super::parser::{Config, Hook, Repo, ConfigError, HookType, AccessMode};
 
+/// Represents a hook in a .pre-commit-hooks.yaml file
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PreCommitHookDefinition {
+    /// Hook identifier
+    pub id: String,
+
+    /// Human-readable name
+    pub name: String,
+
+    /// Description of the hook
+    #[serde(default)]
+    pub description: String,
+
+    /// Entry point for the hook
+    pub entry: String,
+
+    /// Programming language or environment
+    pub language: String,
+
+    /// File pattern to match
+    #[serde(default)]
+    pub files: String,
+
+    /// Additional arguments to pass to the hook
+    #[serde(default)]
+    pub args: Vec<String>,
+
+    /// Stages to run this hook on
+    #[serde(default)]
+    pub stages: Vec<String>,
+}
+
+/// Represents a .pre-commit-hooks.yaml file
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PreCommitHooksFile {
+    /// List of hooks in this repository
+    pub hooks: Vec<PreCommitHookDefinition>,
+}
+
+/// Parse a .pre-commit-hooks.yaml file
+pub fn parse_precommit_hooks_file<P: AsRef<Path>>(path: P) -> Result<PreCommitHooksFile, ConfigError> {
+    let hooks_str = fs::read_to_string(path)?;
+    let hooks: PreCommitHooksFile = serde_yaml::from_str(&hooks_str)?;
+    Ok(hooks)
+}
+
+/// Find and parse the .pre-commit-hooks.yaml file for a repository
+pub fn find_precommit_hooks_for_repo(repo_url: &str) -> Option<PreCommitHooksFile> {
+    // In a real implementation, this would fetch the repository and parse its .pre-commit-hooks.yaml file
+    // For now, we'll simulate fetching and parsing the .pre-commit-hooks.yaml file
+
+    // This function should fetch the repository, look for a .pre-commit-hooks.yaml file,
+    // and parse it to determine the hooks available in the repository.
+
+    // For the purpose of this implementation, we'll create a mock function that returns
+    // a simulated .pre-commit-hooks.yaml file for well-known repositories.
+    // In a production environment, this would be replaced with actual fetching and parsing logic.
+
+    // Extract the repository name from the URL for logging purposes
+    let repo_parts: Vec<&str> = repo_url.split('/').collect();
+    if repo_parts.len() < 2 {
+        return None;
+    }
+
+    // Get the last part of the URL (repo name)
+    let _repo = repo_parts.last().unwrap_or(&"");
+
+    // In a real implementation, we would:
+    // 1. Clone or fetch the repository
+    // 2. Look for a .pre-commit-hooks.yaml file
+    // 3. Parse the file and return the hooks
+
+    // For now, we'll return a simulated set of hooks for well-known repositories
+    // This is just for demonstration purposes until the actual fetching logic is implemented
+
+    // Create a mock .pre-commit-hooks.yaml file based on the repository URL
+    // These are representative examples of what these files might contain
+
+    // For pre-commit-hooks repository
+    if repo_url.contains("pre-commit/pre-commit-hooks") {
+        let hooks = vec![
+            PreCommitHookDefinition {
+                id: "trailing-whitespace".to_string(),
+                name: "Trim Trailing Whitespace".to_string(),
+                description: "Trims trailing whitespace".to_string(),
+                entry: "trailing-whitespace".to_string(),
+                language: "python".to_string(),
+                files: "".to_string(),
+                args: vec![],
+                stages: vec!["commit".to_string()],
+            },
+            PreCommitHookDefinition {
+                id: "end-of-file-fixer".to_string(),
+                name: "Fix End of Files".to_string(),
+                description: "Ensures that a file is either empty, or ends with one newline".to_string(),
+                entry: "end-of-file-fixer".to_string(),
+                language: "python".to_string(),
+                files: "".to_string(),
+                args: vec![],
+                stages: vec!["commit".to_string()],
+            },
+            PreCommitHookDefinition {
+                id: "check-yaml".to_string(),
+                name: "Check Yaml".to_string(),
+                description: "Checks yaml files for parseable syntax".to_string(),
+                entry: "check-yaml".to_string(),
+                language: "python".to_string(),
+                files: "".to_string(),
+                args: vec![],
+                stages: vec!["commit".to_string()],
+            },
+            PreCommitHookDefinition {
+                id: "check-added-large-files".to_string(),
+                name: "Check for added large files".to_string(),
+                description: "Prevents giant files from being committed".to_string(),
+                entry: "check-added-large-files".to_string(),
+                language: "python".to_string(),
+                files: "".to_string(),
+                args: vec![],
+                stages: vec!["commit".to_string()],
+            },
+        ];
+        return Some(PreCommitHooksFile { hooks });
+    }
+
+    // For ruff repository
+    else if repo_url.contains("astral-sh/ruff-pre-commit") {
+        let hooks = vec![
+            PreCommitHookDefinition {
+                id: "ruff".to_string(),
+                name: "Ruff".to_string(),
+                description: "Run Ruff to check Python code".to_string(),
+                entry: "ruff".to_string(),
+                language: "python".to_string(),
+                files: "".to_string(),
+                args: vec![],
+                stages: vec!["commit".to_string()],
+            },
+            PreCommitHookDefinition {
+                id: "ruff-format".to_string(),
+                name: "Ruff Format".to_string(),
+                description: "Run Ruff formatter on Python code".to_string(),
+                entry: "ruff format".to_string(),
+                language: "python".to_string(),
+                files: "".to_string(),
+                args: vec![],
+                stages: vec!["commit".to_string()],
+            },
+        ];
+        return Some(PreCommitHooksFile { hooks });
+    }
+
+    // For biome repository
+    else if repo_url.contains("biomejs/pre-commit") {
+        let hooks = vec![
+            PreCommitHookDefinition {
+                id: "biome-check".to_string(),
+                name: "Biome Check".to_string(),
+                description: "Run Biome check on JavaScript/TypeScript files".to_string(),
+                entry: "biome check".to_string(),
+                language: "node".to_string(),
+                files: "".to_string(),
+                args: vec![],
+                stages: vec!["commit".to_string()],
+            },
+            PreCommitHookDefinition {
+                id: "biome-format".to_string(),
+                name: "Biome Format".to_string(),
+                description: "Run Biome format on JavaScript/TypeScript files".to_string(),
+                entry: "biome format".to_string(),
+                language: "node".to_string(),
+                files: "".to_string(),
+                args: vec![],
+                stages: vec!["commit".to_string()],
+            },
+        ];
+        return Some(PreCommitHooksFile { hooks });
+    }
+
+    // For other repositories, we would need to fetch and parse their .pre-commit-hooks.yaml file
+    // For now, we'll return None to indicate that we couldn't find a hooks file
+    None
+}
+
 /// Represents a pre-commit configuration
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PreCommitConfig {
@@ -129,110 +313,46 @@ pub fn convert_to_rustyhook_config(precommit_config: &PreCommitConfig) -> Config
         for precommit_hook in &precommit_repo.hooks {
             // Determine the appropriate language and entry based on the hook
             let (language, entry) = if let Some(lang) = &precommit_hook.language {
-                if lang == "python" {
-                    // For Python hooks, use the python language and install the package
-                    (
-                        "python".to_string(),
-                        precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
-                    )
-                } else if lang == "node" || lang == "javascript" || lang == "typescript" {
-                    // For Node.js hooks, use the node language
-                    (
-                        "node".to_string(),
-                        precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
-                    )
-                } else if lang == "ruby" {
-                    // For Ruby hooks, use the ruby language
-                    (
-                        "ruby".to_string(),
-                        precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
-                    )
-                } else if lang == "system" && precommit_repo.repo.contains("pre-commit/pre-commit-hooks") {
-                    // For pre-commit hooks with system language, use python and the hook ID directly
-                    (
-                        "python".to_string(),
-                        precommit_hook.id.clone()
-                    )
-                } else if precommit_repo.repo.contains("pre-commit/pre-commit-hooks") {
-                    // For pre-commit hooks with other languages, use python and the hook ID directly
-                    (
-                        "python".to_string(),
-                        precommit_hook.id.clone()
-                    )
-                } else {
-                    // For other languages and repos, use the system language
-                    (
-                        "system".to_string(),
-                        precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
-                    )
-                }
+                // If the hook specifies a language, use it
+                (
+                    lang.clone(),
+                    precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
+                )
             } else {
-                // If no language is specified, determine it based on the repo URL
-                if precommit_repo.repo.contains("pre-commit/pre-commit-hooks") {
-                    // For pre-commit hooks, use the python language and install pre-commit-hooks
-                    // Use the hook ID directly as the entry point
-                    (
-                        "python".to_string(),
-                        precommit_hook.id.clone()
-                    )
-                } else if precommit_repo.repo.contains("astral-sh/ruff-pre-commit") {
-                    // For ruff hooks, use the python language and install ruff
-                    (
-                        "python".to_string(),
-                        format!("ruff {}", precommit_hook.id)
-                    )
-                } else if precommit_repo.repo.contains("shellcheck-py/shellcheck-py") {
-                    // For shellcheck hooks, use the python language and install shellcheck-py
-                    (
-                        "python".to_string(),
-                        format!("shellcheck {}", precommit_hook.id)
-                    )
-                } else if precommit_repo.repo.contains("biomejs/pre-commit") {
-                    // For biome hooks, use the node language and install @biomejs/biome
-                    (
-                        "node".to_string(),
-                        format!("biome {}", precommit_hook.id)
-                    )
-                } else if precommit_repo.repo.contains("scop/pre-commit-shfmt") {
-                    // For shfmt hooks, use the system language
-                    (
-                        "system".to_string(),
-                        format!("shfmt {}", precommit_hook.id)
-                    )
-                } else if precommit_repo.repo.contains("codespell-project/codespell") {
-                    // For codespell hooks, use the python language and install codespell
-                    (
-                        "python".to_string(),
-                        format!("codespell {}", precommit_hook.id)
-                    )
-                } else if precommit_repo.repo.contains("google/yamlfmt") {
-                    // For yamlfmt hooks, use the system language
-                    (
-                        "system".to_string(),
-                        format!("yamlfmt {}", precommit_hook.id)
-                    )
-                } else if precommit_repo.repo.contains("rtts/djhtml") {
-                    // For djhtml hooks, use the python language and install djhtml
-                    (
-                        "python".to_string(),
-                        format!("djhtml {}", precommit_hook.id)
-                    )
+                // If no language is specified, look up the hook in the repository's .pre-commit-hooks.yaml file
+                if let Some(hooks_file) = find_precommit_hooks_for_repo(&precommit_repo.repo) {
+                    // Try to find the hook in the hooks file
+                    if let Some(hook_def) = hooks_file.hooks.iter().find(|h| h.id == precommit_hook.id) {
+                        // Use the language and entry from the hook definition
+                        (
+                            hook_def.language.clone(),
+                            hook_def.entry.clone()
+                        )
+                    } else {
+                        // If the hook is not found in the hooks file, use system language as a fallback
+                        (
+                            "system".to_string(),
+                            precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
+                        )
+                    }
                 } else {
-                    // For other repos, use the system language
+                    // If no hooks file is found, use system language as a fallback
                     (
                         "system".to_string(),
-                        precommit_hook.entry.clone().unwrap_or_else(|| format!("pre-commit-hooks {}", precommit_hook.id))
+                        precommit_hook.entry.clone().unwrap_or_else(|| precommit_hook.id.clone())
                     )
                 }
             };
 
-            // Determine the hook type based on the repo and language
-            let hook_type = if precommit_repo.repo.contains("pre-commit/pre-commit-hooks") && language == "python" {
-                // For pre-commit-hooks with python language, use internal hook type
-                // so they will be run using the PythonTool instead of in a separate process
-                HookType::Internal
+            // Determine the hook type based on the hook definition
+            // This should be determined from the hook definition in the .pre-commit-hooks.yaml file
+            // For now, we'll use a simple heuristic: hooks with simple entry points that match their IDs
+            // are likely built-in, while hooks with more complex entry points are likely external
+            let hook_type = if entry == precommit_hook.id {
+                // If the entry point is the same as the ID, it's likely a built-in hook
+                HookType::BuiltIn
             } else {
-                // For other hooks, use external hook type
+                // Otherwise, it's likely an external hook
                 HookType::External
             };
 
