@@ -24,7 +24,7 @@ Tasks:
 - [x] Remove the dependency on a base interpreter for python, node and ruby by downloading the required interpreters from the internet and installing locally. Make sure to abide by the correct versions in the .python-version and similar files. As this is for a monorepo you will need to ensure the use per sub-directory.
 - [x] Use the instructions found at docs/ruby.md to replace the current process of installing Ruby. Pay special attention to all the tasks and requirements.
 - [x] Take the best ideas from the pre-commit and lefthook projects and integrate them into rustyhook.
-- [ ] ensure all tasks can operate in parallel
+- [x] ensure all tasks can operate in parallel
 - [ ] We will need some sort of mutex system to ensure that the hooks are not running at the same time on the same file. Perhaps what might work better is to mark the hooks as readers or readers and writers to allow for all readers to execute first and in parallel but the reader/writers can only execute in parallel as long as their file globs do not overlap.
 - [ ] implement an "explain" command that can be used to explain the current configuration and any errors that may have occurred. Perhaps the existing doctor command can be used instead?
 - [ ] use uv to start all python hooks in a separate process
