@@ -211,6 +211,11 @@ impl ParallelExecutor {
         println!("Running {} read-write hooks", write_hooks.len());
 
         if write_hooks.is_empty() {
+            // Make sure all tasks are completed before returning
+            while tasks.len() > 0 {
+                let result = tasks.join_next().await.unwrap();
+                result??;
+            }
             return Ok(());
         }
 
@@ -272,6 +277,12 @@ impl ParallelExecutor {
                 // Run all hooks in this group in parallel
                 self.run_hook_batch(group, &mut tasks).await?;
             }
+        }
+
+        // Make sure all tasks are completed before returning
+        while tasks.len() > 0 {
+            let result = tasks.join_next().await.unwrap();
+            result??;
         }
 
         Ok(())

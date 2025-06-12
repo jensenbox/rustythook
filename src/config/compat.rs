@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use git2;
 
 use super::parser::{Config, Hook, Repo, ConfigError, HookType, AccessMode};
 
@@ -42,154 +43,119 @@ pub struct PreCommitHookDefinition {
 }
 
 /// Represents a .pre-commit-hooks.yaml file
+/// 
+/// This is a wrapper around a vector of hook definitions to make it easier to work with.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PreCommitHooksFile {
     /// List of hooks in this repository
     pub hooks: Vec<PreCommitHookDefinition>,
 }
 
+impl From<Vec<PreCommitHookDefinition>> for PreCommitHooksFile {
+    fn from(hooks: Vec<PreCommitHookDefinition>) -> Self {
+        PreCommitHooksFile { hooks }
+    }
+}
+
 /// Parse a .pre-commit-hooks.yaml file
 pub fn parse_precommit_hooks_file<P: AsRef<Path>>(path: P) -> Result<PreCommitHooksFile, ConfigError> {
     let hooks_str = fs::read_to_string(path)?;
-    let hooks: PreCommitHooksFile = serde_yaml::from_str(&hooks_str)?;
-    Ok(hooks)
+
+    // Try to parse as a PreCommitHooksFile first
+    match serde_yaml::from_str::<PreCommitHooksFile>(&hooks_str) {
+        Ok(hooks_file) => Ok(hooks_file),
+        Err(_) => {
+            // If that fails, try to parse as a Vec<PreCommitHookDefinition>
+            let hooks: Vec<PreCommitHookDefinition> = serde_yaml::from_str(&hooks_str)?;
+            Ok(PreCommitHooksFile::from(hooks))
+        }
+    }
 }
 
 /// Find and parse the .pre-commit-hooks.yaml file for a repository
+/// 
+/// This function clones the repository to the local cache directory and looks for
+/// .pre-commit-hooks.yaml in the root of the repository.
+/// If found, it parses the file and returns the hooks defined in it.
+/// If the file can't be found or parsed, it returns None.
 pub fn find_precommit_hooks_for_repo(repo_url: &str) -> Option<PreCommitHooksFile> {
-    // In a real implementation, this would fetch the repository and parse its .pre-commit-hooks.yaml file
-    // For now, we'll simulate fetching and parsing the .pre-commit-hooks.yaml file
+    // Create a cache directory for repositories
+    let cache_dir = std::env::current_dir().unwrap_or_default().join(".rustyhook").join("cache").join("repos");
 
-    // This function should fetch the repository, look for a .pre-commit-hooks.yaml file,
-    // and parse it to determine the hooks available in the repository.
+    // Create a subdirectory for this specific repository
+    // Use a hash of the repo URL to create a unique directory name
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
 
-    // For the purpose of this implementation, we'll create a mock function that returns
-    // a simulated .pre-commit-hooks.yaml file for well-known repositories.
-    // In a production environment, this would be replaced with actual fetching and parsing logic.
+    let mut hasher = DefaultHasher::new();
+    repo_url.hash(&mut hasher);
+    let repo_hash = hasher.finish();
 
-    // Extract the repository name from the URL for logging purposes
-    let repo_parts: Vec<&str> = repo_url.split('/').collect();
-    if repo_parts.len() < 2 {
-        return None;
+    let repo_dir = cache_dir.join(format!("{}", repo_hash));
+
+    // Create the directory if it doesn't exist
+    if !repo_dir.exists() {
+        if let Err(err) = std::fs::create_dir_all(&repo_dir) {
+            log::warn!("Failed to create cache directory: {}", err);
+            return None;
+        }
+
+        log::debug!("Cloning repository {} into {}", repo_url, repo_dir.display());
+
+        // Clone the repository
+        match git2::Repository::clone(repo_url, &repo_dir) {
+            Ok(_repo) => {},
+            Err(err) => {
+                log::warn!("Failed to clone repository {}: {}", repo_url, err);
+                // Clean up the directory if the clone failed
+                let _ = std::fs::remove_dir_all(&repo_dir);
+                return None;
+            }
+        };
+    } else {
+        log::debug!("Using cached repository at {}", repo_dir.display());
     }
 
-    // Get the last part of the URL (repo name)
-    let _repo = repo_parts.last().unwrap_or(&"");
+    // Look for .pre-commit-hooks.yaml in the repository
+    let path = repo_dir.join(".pre-commit-hooks.yaml");
 
-    // In a real implementation, we would:
-    // 1. Clone or fetch the repository
-    // 2. Look for a .pre-commit-hooks.yaml file
-    // 3. Parse the file and return the hooks
+    // Try to find and parse the file
+        log::debug!("Looking for .pre-commit-hooks.yaml at: {}", path.display());
 
-    // For now, we'll return a simulated set of hooks for well-known repositories
-    // This is just for demonstration purposes until the actual fetching logic is implemented
+        if path.exists() {
+            log::debug!("Found .pre-commit-hooks.yaml at: {}", path.display());
 
-    // Create a mock .pre-commit-hooks.yaml file based on the repository URL
-    // These are representative examples of what these files might contain
+            // Read the file
+            match fs::read_to_string(&path) {
+                Ok(content) => {
+                    // Parse the YAML content
+                    // Try to parse as a PreCommitHooksFile first
+                    match serde_yaml::from_str::<PreCommitHooksFile>(&content) {
+                        Ok(hooks_file) => {
+                            log::info!("Successfully parsed .pre-commit-hooks.yaml from {} as a struct", path.display());
+                            return Some(hooks_file);
+                        }
+                        Err(_) => {
+                            // If that fails, try to parse as a Vec<PreCommitHookDefinition>
+                            match serde_yaml::from_str::<Vec<PreCommitHookDefinition>>(&content) {
+                                Ok(hooks) => {
+                                    log::info!("Successfully parsed .pre-commit-hooks.yaml from {} as a sequence", path.display());
+                                    return Some(PreCommitHooksFile::from(hooks));
+                                }
+                                Err(err) => {
+                                    log::warn!("Failed to parse .pre-commit-hooks.yaml from {}: {}", path.display(), err);
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    log::warn!("Failed to read .pre-commit-hooks.yaml from {}: {}", path.display(), err);
+                }
+            }
+        }
 
-    // For pre-commit-hooks repository
-    if repo_url.contains("pre-commit/pre-commit-hooks") {
-        let hooks = vec![
-            PreCommitHookDefinition {
-                id: "trailing-whitespace".to_string(),
-                name: "Trim Trailing Whitespace".to_string(),
-                description: "Trims trailing whitespace".to_string(),
-                entry: "trailing-whitespace".to_string(),
-                language: "python".to_string(),
-                files: "".to_string(),
-                args: vec![],
-                stages: vec!["commit".to_string()],
-            },
-            PreCommitHookDefinition {
-                id: "end-of-file-fixer".to_string(),
-                name: "Fix End of Files".to_string(),
-                description: "Ensures that a file is either empty, or ends with one newline".to_string(),
-                entry: "end-of-file-fixer".to_string(),
-                language: "python".to_string(),
-                files: "".to_string(),
-                args: vec![],
-                stages: vec!["commit".to_string()],
-            },
-            PreCommitHookDefinition {
-                id: "check-yaml".to_string(),
-                name: "Check Yaml".to_string(),
-                description: "Checks yaml files for parseable syntax".to_string(),
-                entry: "check-yaml".to_string(),
-                language: "python".to_string(),
-                files: "".to_string(),
-                args: vec![],
-                stages: vec!["commit".to_string()],
-            },
-            PreCommitHookDefinition {
-                id: "check-added-large-files".to_string(),
-                name: "Check for added large files".to_string(),
-                description: "Prevents giant files from being committed".to_string(),
-                entry: "check-added-large-files".to_string(),
-                language: "python".to_string(),
-                files: "".to_string(),
-                args: vec![],
-                stages: vec!["commit".to_string()],
-            },
-        ];
-        return Some(PreCommitHooksFile { hooks });
-    }
-
-    // For ruff repository
-    else if repo_url.contains("astral-sh/ruff-pre-commit") {
-        let hooks = vec![
-            PreCommitHookDefinition {
-                id: "ruff".to_string(),
-                name: "Ruff".to_string(),
-                description: "Run Ruff to check Python code".to_string(),
-                entry: "ruff".to_string(),
-                language: "python".to_string(),
-                files: "".to_string(),
-                args: vec![],
-                stages: vec!["commit".to_string()],
-            },
-            PreCommitHookDefinition {
-                id: "ruff-format".to_string(),
-                name: "Ruff Format".to_string(),
-                description: "Run Ruff formatter on Python code".to_string(),
-                entry: "ruff format".to_string(),
-                language: "python".to_string(),
-                files: "".to_string(),
-                args: vec![],
-                stages: vec!["commit".to_string()],
-            },
-        ];
-        return Some(PreCommitHooksFile { hooks });
-    }
-
-    // For biome repository
-    else if repo_url.contains("biomejs/pre-commit") {
-        let hooks = vec![
-            PreCommitHookDefinition {
-                id: "biome-check".to_string(),
-                name: "Biome Check".to_string(),
-                description: "Run Biome check on JavaScript/TypeScript files".to_string(),
-                entry: "biome check".to_string(),
-                language: "node".to_string(),
-                files: "".to_string(),
-                args: vec![],
-                stages: vec!["commit".to_string()],
-            },
-            PreCommitHookDefinition {
-                id: "biome-format".to_string(),
-                name: "Biome Format".to_string(),
-                description: "Run Biome format on JavaScript/TypeScript files".to_string(),
-                entry: "biome format".to_string(),
-                language: "node".to_string(),
-                files: "".to_string(),
-                args: vec![],
-                stages: vec!["commit".to_string()],
-            },
-        ];
-        return Some(PreCommitHooksFile { hooks });
-    }
-
-    // For other repositories, we would need to fetch and parse their .pre-commit-hooks.yaml file
-    // For now, we'll return None to indicate that we couldn't find a hooks file
+    log::warn!("Could not fetch .pre-commit-hooks.yaml for {}", repo_url);
     None
 }
 
